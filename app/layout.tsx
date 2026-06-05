@@ -9,6 +9,13 @@ export const metadata: Metadata = {
   },
   description:
     "Remove hidden metadata from your images, including EXIF, XMP, GPS, editing software tags and C2PA/provenance data. Fast, private, mobile-friendly image cleaner for creators.",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" }
+    ],
+    shortcut: "/favicon.svg",
+    apple: "/apple-touch-icon.svg"
+  },
   keywords: [
     "image metadata remover",
     "remove image metadata",
