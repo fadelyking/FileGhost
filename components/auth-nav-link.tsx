@@ -53,7 +53,7 @@ export function AuthNavLink() {
         Log in
       </Link>
       <Link href="/dashboard" className="rounded-lg border border-mint bg-transparent px-4 py-2 text-sm font-semibold text-mint focus-ring hover:bg-mint hover:text-ink">
-        Open App →
+        Clean Photos →
       </Link>
     </div>;
   }
