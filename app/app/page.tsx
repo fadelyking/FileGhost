@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { Footer } from "@/components/footer";
 import { SiteHeader } from "@/components/site-header";
 import { UploadCleaner } from "@/components/upload-cleaner";
 import { getCurrentUser, getProfile } from "@/lib/auth";
-import { getPlanAccess } from "@/lib/plans";
+import { FREE_IMAGE_LIMIT, getPlanAccess } from "@/lib/plans";
 
 export const metadata: Metadata = {
   title: "App",
@@ -15,10 +14,17 @@ export const dynamic = "force-dynamic";
 
 export default async function AppPage() {
   const user = await getCurrentUser();
-  if (!user) redirect("/");
 
-  const profile = await getProfile(user.id);
-  const usage = getPlanAccess(profile);
+  const profile = user ? await getProfile(user.id) : null;
+  const usage = user
+    ? getPlanAccess(profile)
+    : {
+        freeUsed: 0,
+        freeLimit: FREE_IMAGE_LIMIT,
+        plan: "guest",
+        remaining: FREE_IMAGE_LIMIT,
+        paid: false
+      };
 
   return (
     <>
@@ -29,7 +35,7 @@ export default async function AppPage() {
           public sharing. Metadata removal does not guarantee how platforms classify content.
         </div>
 
-        <UploadCleaner initialUsage={usage} isLoggedIn />
+        <UploadCleaner initialUsage={usage} isLoggedIn={Boolean(user)} />
       </main>
       <Footer />
     </>
