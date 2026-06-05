@@ -1,48 +1,33 @@
-# syntax = docker/dockerfile:1
-
-# Adjust NODE_VERSION as desired
-ARG NODE_VERSION=22.21.1
-FROM node:${NODE_VERSION}-slim AS base
-
-LABEL fly_launch_runtime="Next.js"
-
-# Next.js app lives here
+FROM node:22-alpine AS deps
 WORKDIR /app
 
-# Set production environment
-ENV NODE_ENV="production"
+COPY package.json package-lock.json* ./
+RUN npm install
 
+FROM node:22-alpine AS builder
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Throw-away build stage to reduce size of final image
-FROM base AS build
-
-# Install packages needed to build node modules
-RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential node-gyp pkg-config python-is-python3
-
-# Install node modules
-COPY package-lock.json package.json ./
-RUN npm ci --include=dev
-
-# Copy application code
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+RUN mkdir -p public && npm run build
 
-# Build application
-RUN npx next build --experimental-build-mode compile
+FROM node:22-alpine AS runner
+WORKDIR /app
 
-# Remove development dependencies
-RUN npm prune --omit=dev
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
 
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
 
-# Final stage for app image
-FROM base
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy built application
-COPY --from=build /app /app
+USER nextjs
 
-# Entrypoint sets up the container.
-ENTRYPOINT [ "/app/docker-entrypoint.js" ]
-
-# Start the server by default, this can be overwritten at runtime
 EXPOSE 3000
-CMD [ "npm", "run", "start" ]
+
+CMD ["node", "server.js"]
