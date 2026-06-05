@@ -1,8 +1,9 @@
 .next
 node_modules
+.git
 .env
 .env.local
-.npm-cache*
-dist
-*.log
-cleaned-output
+.env.*.local
+npm-debug.log*
+.npm-cache-next
+.npm-cache-next2

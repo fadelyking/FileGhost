@@ -7,12 +7,12 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) {
-    return NextResponse.json({ error: "Log in to manage billing." }, { status: 401 });
+    return NextResponse.json({ error: "Log in first." }, { status: 401 });
   }
 
   const profile = await getProfile(user.id);
   if (!profile?.stripe_customer_id) {
-    return NextResponse.json({ error: "No billing profile found yet." }, { status: 404 });
+    return NextResponse.json({ error: "No billing customer found." }, { status: 404 });
   }
 
   const appUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
