@@ -21,6 +21,7 @@ export default async function AccountPage() {
   const profile = user ? await getProfile(user.id) : null;
   const isPaid = hasPaidAccess(profile);
   const isFree = !isPaid;
+  const canChangePlan = profile?.plan === "monthly";
 
   return (
     <>
@@ -71,12 +72,14 @@ export default async function AccountPage() {
             ) : (
               <>
                 <BillingPortalButton disabled={!profile?.stripe_customer_id} />
-                <Link
-                  href="/pricing"
-                  className="inline-flex min-h-11 items-center justify-center rounded-lg border border-line bg-transparent px-6 py-3 font-semibold text-[color:var(--color-text-muted)] focus-ring hover:border-mint hover:text-white"
-                >
-                  Change plan
-                </Link>
+                {canChangePlan ? (
+                  <Link
+                    href="/pricing"
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg border border-line bg-transparent px-6 py-3 font-semibold text-[color:var(--color-text-muted)] focus-ring hover:border-mint hover:text-white"
+                  >
+                    Change plan
+                  </Link>
+                ) : null}
               </>
             )}
             <span className="hidden h-4 w-px bg-line sm:inline-block" aria-hidden="true" />
