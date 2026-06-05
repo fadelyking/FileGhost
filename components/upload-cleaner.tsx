@@ -161,7 +161,7 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
   return (
     <div className="space-y-6">
       <section className="grid gap-3 sm:grid-cols-3">
-        <UsageCard label="Images cleaned" value={usage.paid ? "—" : String(usage.freeUsed)} />
+        <UsageCard label="Images cleaned" value={usage.paid ? "Active" : String(usage.freeUsed)} />
         {usage.paid ? (
           <UsageCard label="Cleaning" value="Unlimited" valueClassName="text-mint" />
         ) : (
@@ -220,7 +220,7 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
           setIsDragging(false);
           addFiles(event.dataTransfer.files);
         }}
-        className={`flex min-h-[280px] flex-col items-center justify-center rounded-xl border border-dashed p-8 text-center transition ${
+        className={`flex min-h-[320px] flex-col items-center justify-center rounded-xl border border-dashed px-8 py-14 text-center transition ${
           isDragging ? "border-mint bg-mint/10" : "border-line bg-panel hover:border-mint"
         }`}
       >
@@ -337,8 +337,8 @@ function UsageCard({ label, value, remaining, href, valueClassName }: { label: s
 
   return (
     <div className={`rounded-lg border bg-white/[0.035] p-4 ${remaining == null ? "border-white/10" : cardTone.border}`}>
-      <p className="text-sm text-white/50">{label}</p>
-      <p className={`mt-1 text-2xl font-bold tracking-tight ${valueClassName || (remaining == null ? "" : cardTone.text)}`}>{value}</p>
+      <p className="text-[13px] font-normal text-[color:var(--color-text-muted)]">{label}</p>
+      <p className={`mt-1 text-[22px] font-bold leading-[1.2] tracking-tight ${valueClassName || (remaining == null ? "text-[color:var(--color-text)]" : cardTone.text)}`}>{value}</p>
       {href ? (
         <Link href={href} className="mt-2 inline-flex text-xs font-semibold text-mint hover:text-white">
           View pricing →

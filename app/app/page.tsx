@@ -31,8 +31,7 @@ export default async function AppPage() {
       <SiteHeader />
       <main className="mx-auto max-w-6xl px-4 py-8">
         <div className="mb-6 rounded-lg border border-white/10 bg-white/[0.035] p-4 text-sm text-white/65">
-          Files are processed privately and intended to be deleted after processing. No training. No
-          public sharing. Metadata removal does not guarantee how platforms classify content.
+          Files processed privately and deleted after cleaning. No training. No public sharing.
         </div>
 
         <UploadCleaner initialUsage={usage} isLoggedIn={Boolean(user)} />
