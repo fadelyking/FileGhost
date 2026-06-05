@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, ChevronDown, MapPinOff, SlidersHorizontal } from "lucide-react";
+import { CheckCircle2, ChevronDown, SlidersHorizontal } from "lucide-react";
 import type { MetadataSummary } from "@/lib/metadata";
 
 type Props = {
@@ -9,106 +9,174 @@ type Props = {
   metadataAfter: MetadataSummary;
 };
 
+type CategoryState = "removed" | "not_found" | "partial";
+
+type Category = {
+  label: string;
+  patterns: string[];
+  partial?: boolean;
+};
+
+const categories: Category[] = [
+  { label: "GPS & location data", patterns: ["gps", "location", "latitude", "longitude"] },
+  { label: "Camera model & device info", patterns: ["exif", "make", "model", "orientation", "camera", "device"] },
+  { label: "Software & editor tags", patterns: ["software", "editor", "photoshop", "lightroom", "canva"] },
+  { label: "XMP metadata", patterns: ["xmp"] },
+  { label: "IPTC metadata", patterns: ["iptc"] },
+  { label: "Timestamps & edit history", patterns: ["date", "time", "timestamp", "history", "created", "modified"] },
+  { label: "Embedded notes & comments", patterns: ["comment", "note", "description", "artist", "copyright"] },
+  { label: "AI provenance markers (C2PA)", patterns: ["c2pa", "provenance", "content credentials"], partial: true }
+];
+
+const technicalRows = [
+  { label: "File format", before: "File format", after: "File format" },
+  { label: "Dimensions", before: "Image size", after: "Image size" },
+  { label: "Pixel density", before: "Pixel density", after: "Pixel density" },
+  { label: "Color space", before: "Color space", after: "Color space" },
+  { label: "GPS coordinates", before: "GPS/location data", after: "GPS/location data" },
+  { label: "Camera model", before: "EXIF metadata", after: "EXIF metadata" },
+  { label: "Software tag", before: "Software/editor tags", after: "Software/editor tags" },
+  { label: "XMP metadata", before: "XMP metadata", after: "XMP metadata" },
+  { label: "IPTC metadata", before: "IPTC metadata", after: "IPTC metadata" },
+  { label: "C2PA markers", before: "C2PA/provenance data", after: "C2PA/provenance data" }
+];
+
 export function MetadataPreview({ metadataBefore, metadataAfter }: Props) {
   const [showDetails, setShowDetails] = useState(false);
-  const beforeLabels = useMemo(() => humanBefore(metadataBefore), [metadataBefore]);
-  const afterLabels = useMemo(() => humanAfter(metadataBefore, metadataAfter), [metadataBefore, metadataAfter]);
+  const categoryStates = useMemo(() => getCategoryStates(metadataBefore, metadataAfter), [metadataBefore, metadataAfter]);
+  const foundCount = categoryStates.filter((item) => item.state !== "not_found").length;
+  const hasSensitiveMetadata = foundCount > 0;
 
   return (
-    <div className="rounded-lg border border-white/10 bg-white/[0.035] p-4">
-      <div className="grid gap-4 md:grid-cols-2">
-        <div>
-          <h4 className="font-semibold">Before cleaning</h4>
+    <div className="rounded-lg border border-line bg-panel p-4">
+      {hasSensitiveMetadata ? (
+        <>
+          <p className="text-xs font-bold uppercase tracking-[0.08em] text-[color:var(--color-text-muted)]">What was removed</p>
           <div className="mt-3 space-y-2">
-            {beforeLabels.map((label) => (
-              <Fact key={label} icon="before" label={label} />
+            {categoryStates.map((item) => (
+              <RemovalRow key={item.label} label={item.label} state={item.state} />
             ))}
           </div>
+        </>
+      ) : (
+        <div className="rounded-lg border border-mint/20 bg-mint/[0.05] p-5 text-center">
+          <CheckCircle2 className="mx-auto text-mint" size={32} />
+          <h4 className="mt-3 text-lg font-bold text-[color:var(--color-text)]">This file was already clean.</h4>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[color:var(--color-text-muted)]">
+            No sensitive metadata was found. Your file is ready to download as-is.
+          </p>
         </div>
-        <div>
-          <h4 className="font-semibold">After cleaning</h4>
-          <div className="mt-3 space-y-2">
-            {afterLabels.map((label) => (
-              <Fact key={label} icon="after" label={label} />
-            ))}
-          </div>
-        </div>
-      </div>
+      )}
 
       <button
         type="button"
         onClick={() => setShowDetails((value) => !value)}
-        className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 text-sm font-semibold text-white/78 focus-ring hover:bg-white/10"
+        className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-line bg-white/5 px-3 text-sm font-semibold text-white/78 focus-ring hover:bg-white/10"
       >
         <SlidersHorizontal size={16} />
         Show technical details
         <ChevronDown size={16} className={showDetails ? "rotate-180 transition" : "transition"} />
       </button>
 
-      {showDetails ? (
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <Technical title="Before JSON" data={metadataBefore} />
-          <Technical title="After JSON" data={metadataAfter} />
-        </div>
-      ) : null}
+      {showDetails ? <TechnicalTable metadataBefore={metadataBefore} metadataAfter={metadataAfter} /> : null}
     </div>
   );
 }
 
-function Fact({ icon, label }: { icon: "before" | "after"; label: string }) {
-  const Icon = icon === "before" ? MapPinOff : CheckCircle2;
+function RemovalRow({ label, state }: { label: string; state: CategoryState }) {
+  const isRemoved = state === "removed";
+  const isPartial = state === "partial";
+  const icon = isRemoved ? "✓" : isPartial ? "!" : "—";
+  const status = isRemoved ? "Removed" : isPartial ? "Removed where supported" : "Not found";
+
   return (
-    <div className="flex gap-2 rounded-lg border border-white/[0.08] bg-ink/50 px-3 py-2 text-sm text-white/72">
-      <Icon className="mt-0.5 shrink-0 text-mint" size={16} />
-      <span>{label}</span>
+    <div
+      className={`flex items-center justify-between gap-4 rounded-lg px-3 py-2 text-sm ${
+        isRemoved ? "bg-mint/[0.05]" : isPartial ? "bg-[#F59E0B]/[0.05]" : ""
+      }`}
+      title={isPartial ? "C2PA removal depends on the file and how it was created." : undefined}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <span className={`w-4 shrink-0 text-center font-bold ${isRemoved ? "text-mint" : isPartial ? "text-[#F59E0B]" : "text-[color:var(--color-text-muted)]"}`}>
+          {icon}
+        </span>
+        <span className={`${isRemoved || isPartial ? "font-medium text-[color:var(--color-text)]" : "text-[color:var(--color-text-muted)]"}`}>{label}</span>
+      </div>
+      <span className={`shrink-0 text-[13px] ${isRemoved ? "text-mint" : isPartial ? "text-[#F59E0B]" : "text-[color:var(--color-text-muted)]"}`}>{status}</span>
     </div>
   );
 }
 
-function Technical({ title, data }: { title: string; data: MetadataSummary }) {
+function TechnicalTable({ metadataBefore, metadataAfter }: Props) {
   return (
-    <div className="rounded-lg border border-white/10 bg-ink/70 p-3">
-      <p className="mb-2 text-sm font-semibold">{title}</p>
-      <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words text-xs leading-5 text-white/62">
-        {JSON.stringify(data, null, 2)}
-      </pre>
+    <div className="mt-4 overflow-x-auto rounded-lg border border-line">
+      <table className="w-full min-w-[560px] border-collapse text-left">
+        <thead className="bg-[color:var(--color-surface-alt)]">
+          <tr>
+            <th className="px-3 py-2 text-xs font-medium uppercase tracking-[0.06em] text-[color:var(--color-text-muted)]">Field</th>
+            <th className="px-3 py-2 text-xs font-medium uppercase tracking-[0.06em] text-[color:var(--color-text-muted)]">Before</th>
+            <th className="px-3 py-2 text-xs font-medium uppercase tracking-[0.06em] text-[color:var(--color-text-muted)]">After</th>
+          </tr>
+        </thead>
+        <tbody>
+          {technicalRows.map((row, index) => {
+            const values = readTechnicalValues(metadataBefore, metadataAfter, row.before);
+            return (
+              <tr key={row.label} className={index % 2 === 0 ? "bg-transparent" : "bg-[color:var(--color-surface-alt)]/60"}>
+                <td className="px-3 py-2 text-sm text-[color:var(--color-text)]">{row.label}</td>
+                <td className={`px-3 py-2 text-sm ${values.before === "Found" ? "text-[#EF4444]" : "text-[color:var(--color-text)]"}`}>{values.before}</td>
+                <td className={`px-3 py-2 text-sm ${values.after === "Removed" ? "text-mint" : values.after === "Found" ? "text-[#EF4444]" : "text-[color:var(--color-text)]"}`}>{values.after}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
 
-function humanBefore(metadata: MetadataSummary) {
-  const keys = Object.keys(metadata);
-  const labels = [];
-
-  if (hasKey(keys, "GPS") || hasKey(keys, "location")) labels.push("GPS/location data found");
-  if (hasKey(keys, "EXIF")) labels.push("EXIF metadata found");
-  if (hasKey(keys, "XMP")) labels.push("XMP metadata found");
-  if (hasKey(keys, "IPTC")) labels.push("IPTC metadata found");
-  if (hasKey(keys, "C2PA") || hasKey(keys, "provenance")) labels.push("C2PA/provenance data may be present");
-  if (hasKey(keys, "Software") || hasKey(keys, "editor")) labels.push("Software/editor tags may be present");
-  if (hasKey(keys, "Orientation")) labels.push("Orientation data found");
-
-  if (metadata["File format"]) labels.push(`File format: ${metadata["File format"]}`);
-  if (metadata["Image size"]) labels.push(`Image size: ${metadata["Image size"]}`);
-
-  return labels.length ? labels : ["No obvious hidden metadata found"];
-}
-
-function humanAfter(before: MetadataSummary, after: MetadataSummary) {
+function getCategoryStates(before: MetadataSummary, after: MetadataSummary) {
   const beforeKeys = Object.keys(before);
   const afterKeys = Object.keys(after);
-  const labels = ["Clean file ready"];
+  const hasAnyHiddenMarkers = beforeKeys.some((key) => hiddenKey(key));
 
-  if ((hasKey(beforeKeys, "GPS") || hasKey(beforeKeys, "location")) && !hasKey(afterKeys, "GPS")) {
-    labels.unshift("GPS/location data removed");
-  }
-  if (hasKey(beforeKeys, "EXIF") && !hasKey(afterKeys, "EXIF")) labels.unshift("Camera/device info removed");
-  if (hasKey(beforeKeys, "Software") || hasKey(beforeKeys, "editor")) labels.unshift("Software/editor tags reduced");
-  if (Object.keys(before).length > Object.keys(after).length) labels.unshift("Hidden metadata reduced");
+  return categories.map((category) => {
+    const found = hasAnyHiddenMarkers || hasPattern(beforeKeys, category.patterns);
+    const stillPresent = hasPattern(afterKeys, category.patterns);
+    let state: CategoryState = "not_found";
 
-  return labels;
+    if (found) {
+      state = category.partial ? "partial" : stillPresent ? "partial" : "removed";
+    }
+
+    return { label: category.label, state };
+  });
 }
 
-function hasKey(keys: string[], pattern: string) {
-  return keys.some((key) => key.toLowerCase().includes(pattern.toLowerCase()));
+function hasPattern(keys: string[], patterns: string[]) {
+  return keys.some((key) => patterns.some((pattern) => key.toLowerCase().includes(pattern)));
+}
+
+function hiddenKey(key: string) {
+  const lower = key.toLowerCase();
+  return !["file format", "image size", "pixel density", "color space"].includes(lower);
+}
+
+function readTechnicalValues(before: MetadataSummary, after: MetadataSummary, key: string) {
+  const beforeValue = before[key];
+  const afterValue = after[key];
+
+  if (!hiddenKey(key)) {
+    return {
+      before: beforeValue == null ? "—" : String(beforeValue),
+      after: afterValue == null ? "—" : String(afterValue)
+    };
+  }
+
+  const wasFound = beforeValue != null;
+  const stillFound = afterValue != null;
+  return {
+    before: wasFound ? "Found" : "Not found",
+    after: wasFound ? (stillFound ? "Found" : "Removed") : "Not found"
+  };
 }

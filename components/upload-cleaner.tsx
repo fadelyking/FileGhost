@@ -35,6 +35,16 @@ type Props = {
 const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
 const maxFileMb = 15;
 const maxBatchSize = 20;
+const processingMessages = [
+  "Reading file metadata...",
+  "Scanning for GPS data...",
+  "Scanning for camera info...",
+  "Scanning for software tags...",
+  "Stripping hidden data...",
+  "Re-encoding clean file...",
+  "Verifying output...",
+  "Almost done..."
+];
 
 export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -59,13 +69,29 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
     }
   }, [isLoggedIn]);
 
+  useEffect(() => {
+    if (!isProcessing) return;
+
+    let index = 0;
+    setProgress(processingMessages[index]);
+    const interval = window.setInterval(() => {
+      index = (index + 1) % processingMessages.length;
+      setProgress(processingMessages[index]);
+    }, 1500);
+
+    return () => window.clearInterval(interval);
+  }, [isProcessing]);
+
   const selectedCount = files.length;
   const remaining = usage.remaining ?? FREE_IMAGE_LIMIT;
   const isFreePlan = !usage.paid;
   const hasNoFreeCredits = isFreePlan && isLoggedIn && remaining === 0;
   const canUse = usage.paid || selectedCount <= remaining;
   const buttonLabel = useMemo(() => {
-    if (isProcessing) return progress || "Cleaning images...";
+    if (isProcessing) {
+      if (selectedCount > 1) return `Processing ${selectedCount} images... ${progress || processingMessages[0]}`;
+      return progress || processingMessages[0];
+    }
     if (!selectedCount) return "Choose photos to clean";
     return `Clean ${selectedCount} image${selectedCount === 1 ? "" : "s"}`;
   }, [isProcessing, progress, selectedCount]);
@@ -99,13 +125,12 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
     }
 
     setIsProcessing(true);
-    setProgress("Uploading...");
+    setProgress(processingMessages[0]);
     setError("");
     const form = new FormData();
     files.forEach((file) => form.append("files", file));
 
     try {
-      setProgress("Stripping hidden data...");
       const response = await fetch("/api/images/clean", {
         method: "POST",
         body: form
@@ -118,7 +143,7 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
       }
 
       setResults(payload.results);
-      setProgress("Done");
+      setProgress("");
 
       if (isLoggedIn) {
         setUsage(payload.usage);
@@ -242,9 +267,9 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
             type="button"
             disabled={isProcessing}
             onClick={() => (files.length ? processFiles() : inputRef.current?.click())}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-mint px-8 py-3.5 text-base font-bold text-ink focus-ring hover:bg-[color:var(--color-accent-hover)] disabled:cursor-not-allowed disabled:opacity-70"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-mint px-8 py-3.5 text-base font-bold text-ink focus-ring hover:bg-[color:var(--color-accent-hover)] disabled:cursor-not-allowed disabled:opacity-85 disabled:text-[15px] disabled:font-semibold"
           >
-            {isProcessing ? <Loader2 className="animate-spin" size={18} /> : null}
+            {isProcessing ? <Loader2 className="animate-spin text-ink" size={18} /> : null}
             {buttonLabel}
           </button>
         </div>
@@ -291,7 +316,7 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
                 <div>
                   <h3 className="font-semibold">{image.originalName}</h3>
                   <p className="text-xs text-white/48">
-                    {formatBytes(image.sizeBefore)} to {formatBytes(image.sizeAfter)}
+                    {formatSizeChange(image.sizeBefore, image.sizeAfter)}
                   </p>
                 </div>
                 <a
@@ -362,6 +387,11 @@ function formatBytes(bytes: number) {
   const units = ["B", "KB", "MB"];
   const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+function formatSizeChange(sizeBefore: number, sizeAfter: number) {
+  if (sizeAfter >= sizeBefore) return `${formatBytes(sizeAfter)} (size unchanged)`;
+  return `${formatBytes(sizeBefore)} → ${formatBytes(sizeAfter)}`;
 }
 
 function planName(plan: string) {
