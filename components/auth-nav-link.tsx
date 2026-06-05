@@ -10,6 +10,11 @@ type AuthState = {
   email: string | null;
 };
 
+type NavItem = {
+  href: string;
+  label: string;
+};
+
 export function AuthNavLink() {
   const menuRef = useRef<HTMLDetailsElement>(null);
   const [auth, setAuth] = useState<AuthState>({ loaded: false, email: null });
@@ -94,5 +99,57 @@ export function AuthNavLink() {
         </button>
       </div>
     </details>
+  );
+}
+
+export function MarketingNavLinks({ items, variant }: { items: NavItem[]; variant: "desktop" | "mobile" }) {
+  const [auth, setAuth] = useState<AuthState>({ loaded: false, email: null });
+
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      setAuth({ loaded: true, email: null });
+      return;
+    }
+
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    );
+
+    supabase.auth.getUser().then(({ data }) => {
+      setAuth({ loaded: true, email: data.user?.email || null });
+    });
+
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuth({ loaded: true, email: session?.user.email || null });
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (!auth.loaded || auth.email) return null;
+
+  if (variant === "desktop") {
+    return (
+      <nav className="hidden items-center gap-6 text-sm text-white/70 md:flex">
+        {items.map((item) => (
+          <Link key={item.href} href={item.href} className="hover:text-white">
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+    );
+  }
+
+  return (
+    <>
+      {items.map((item) => (
+        <Link key={item.href} href={item.href} className="block rounded-md px-3 py-2 text-sm text-white/75 hover:bg-white/10">
+          {item.label}
+        </Link>
+      ))}
+    </>
   );
 }

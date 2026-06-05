@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Menu, ShieldCheck } from "lucide-react";
-import { AuthNavLink } from "@/components/auth-nav-link";
+import { AuthNavLink, MarketingNavLinks } from "@/components/auth-nav-link";
 
 const nav = [
   { href: "/#how-it-works", label: "How it works" },
@@ -18,13 +18,7 @@ export function SiteHeader() {
           </span>
           <span className="text-lg font-semibold tracking-tight">FileGhost</span>
         </Link>
-        <nav className="hidden items-center gap-6 text-sm text-white/70 md:flex">
-          {nav.map((item) => (
-            <Link key={item.href} href={item.href} className="hover:text-white">
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <MarketingNavLinks items={nav} variant="desktop" />
         <div className="flex items-center gap-2">
           <AuthNavLink />
           <details className="relative md:hidden">
@@ -32,11 +26,7 @@ export function SiteHeader() {
               <Menu size={18} />
             </summary>
             <div className="absolute right-0 mt-2 w-48 rounded-lg border border-line bg-panel p-2 shadow-glow">
-              {nav.map((item) => (
-                <Link key={item.href} href={item.href} className="block rounded-md px-3 py-2 text-sm text-white/75 hover:bg-white/10">
-                  {item.label}
-                </Link>
-              ))}
+              <MarketingNavLinks items={nav} variant="mobile" />
               <Link href="/app" className="block rounded-md px-3 py-2 text-sm font-semibold text-mint hover:bg-white/10">
                 Clean Photos
               </Link>
