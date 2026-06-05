@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { BillingPortalButton, SignOutButton } from "@/components/account-actions";
 import { Footer } from "@/components/footer";
 import { SiteHeader } from "@/components/site-header";
@@ -15,6 +16,8 @@ export const dynamic = "force-dynamic";
 
 export default async function AccountPage() {
   const user = await getCurrentUser();
+  if (!user) redirect("/");
+
   const profile = user ? await getProfile(user.id) : null;
   const isPaid = hasPaidAccess(profile);
   const isFree = !isPaid;

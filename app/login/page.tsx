@@ -1,15 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { ShieldCheck } from "lucide-react";
 import { AuthForm } from "@/components/auth-form";
+import { getCurrentUser } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Login",
   description: "Sign in to FileGhost."
 };
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const user = await getCurrentUser();
+  if (user) redirect("/app");
+
   return (
     <main className="grid min-h-screen place-items-center px-4 py-10">
       <section className="w-full max-w-md rounded-lg border border-white/10 bg-white/[0.04] p-6">

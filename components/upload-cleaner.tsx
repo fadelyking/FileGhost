@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, FileArchive, Loader2, UploadCloud, X, Zap } from "lucide-react";
+import { Download, FileArchive, Loader2, Lock, UploadCloud, X, Zap } from "lucide-react";
 import { MetadataPreview } from "@/components/metadata-preview";
 import type { MetadataSummary } from "@/lib/metadata";
 import { FREE_IMAGE_LIMIT } from "@/lib/plans";
@@ -62,6 +62,7 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
   const selectedCount = files.length;
   const remaining = usage.remaining ?? FREE_IMAGE_LIMIT;
   const isFreePlan = !usage.paid;
+  const hasNoFreeCredits = isFreePlan && isLoggedIn && remaining === 0;
   const canUse = usage.paid || selectedCount <= remaining;
   const buttonLabel = useMemo(() => {
     if (isProcessing) return progress || "Cleaning images...";
@@ -160,17 +161,16 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
   return (
     <div className="space-y-6">
       <section className="grid gap-3 sm:grid-cols-3">
-        <UsageCard label="Images cleaned" value={String(usage.freeUsed)} />
-        <UsageCard
-          label="Free cleans remaining"
-          value={usage.paid ? "Unlimited" : usage.remaining === 0 ? "Upgrade to continue" : String(usage.remaining)}
-          remaining={usage.paid ? null : usage.remaining}
-          href={usage.paid ? undefined : usage.remaining === 0 ? "/pricing" : undefined}
-        />
-        <UsageCard label="Your plan" value={usage.paid ? planName(usage.plan) : isLoggedIn ? "Free" : "Guest"} />
+        <UsageCard label="Images cleaned" value={usage.paid ? "—" : String(usage.freeUsed)} />
+        {usage.paid ? (
+          <UsageCard label="Cleaning" value="Unlimited" valueClassName="text-mint" />
+        ) : (
+          <UsageCard label="Free cleans remaining" value={usage.remaining === 0 ? "None left" : String(usage.remaining)} remaining={usage.remaining} />
+        )}
+        <UsageCard label="Your plan" value={usage.paid ? `● ${planName(usage.plan)}` : isLoggedIn ? "Free" : "Guest"} valueClassName={usage.paid ? "text-mint" : undefined} />
       </section>
 
-      {isFreePlan ? (
+      {isFreePlan && remaining > 0 ? (
         <div className="flex flex-col gap-3 rounded-[10px] border border-line border-l-4 border-l-mint bg-panel p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div className="flex items-center gap-3">
             <Zap className="shrink-0 text-mint" size={18} />
@@ -187,6 +187,27 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
         </div>
       ) : null}
 
+      {hasNoFreeCredits ? (
+        <section className="rounded-xl border border-mint bg-panel p-10 text-center">
+          <Lock className="mx-auto text-mint" size={32} />
+          <h2 className="mt-5 text-[22px] font-bold text-[color:var(--color-text)]">You&apos;ve used your 5 free cleans.</h2>
+          <p className="mx-auto mt-2 max-w-md text-[15px] leading-7 text-[color:var(--color-text-muted)]">
+            Upgrade to keep cleaning — unlimited images, no restrictions.
+          </p>
+          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+            <Link href="/pricing?plan=lifetime" className="inline-flex min-h-12 items-center justify-center rounded-lg bg-mint px-6 font-bold text-ink hover:bg-white">
+              Lifetime — $19 one-time
+            </Link>
+            <Link href="/pricing?plan=monthly" className="inline-flex min-h-12 items-center justify-center rounded-lg border border-line px-6 font-semibold text-white/75 hover:border-mint hover:text-white">
+              Monthly — $4.99/mo
+            </Link>
+          </div>
+          <p className="mt-4 text-[11px] text-[color:var(--color-text-muted)]">
+            All plans use Stripe for secure payment. No hidden fees. |{" "}
+            <Link href="/pricing" className="text-mint hover:text-white">View all pricing →</Link>
+          </p>
+        </section>
+      ) : (
       <section
         onDragEnter={(event) => {
           event.preventDefault();
@@ -199,8 +220,8 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
           setIsDragging(false);
           addFiles(event.dataTransfer.files);
         }}
-        className={`rounded-lg border border-dashed p-5 text-center transition ${
-          isDragging ? "border-mint bg-mint/10" : "border-white/[0.14] bg-white/[0.035]"
+        className={`flex min-h-[280px] flex-col items-center justify-center rounded-xl border border-dashed p-8 text-center transition ${
+          isDragging ? "border-mint bg-mint/10" : "border-line bg-panel hover:border-mint"
         }`}
       >
         <input
@@ -230,7 +251,7 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
         {files.length ? (
           <div className="mt-5 grid gap-2 sm:grid-cols-2">
             {files.map((file) => (
-              <div key={`${file.name}-${file.size}-${file.lastModified}`} className="flex items-center justify-between gap-2 rounded-lg bg-white/[0.08] px-3 py-2 text-left text-sm text-white/76">
+              <div key={`${file.name}-${file.size}-${file.lastModified}`} className="flex items-center justify-between gap-2 rounded-md border border-line bg-[color:var(--color-surface-alt)] px-3 py-2.5 text-left text-sm text-white/76">
                 <span className="truncate">{file.name}</span>
                 <button
                   type="button"
@@ -245,23 +266,8 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
           </div>
         ) : null}
         {error ? <p className="mt-4 text-sm text-coral">{error}</p> : null}
-        {!usage.paid && usage.remaining === 0 ? (
-          <div className="mt-5 rounded-lg border border-mint/20 bg-mint/[0.08] p-4">
-            <p className="font-semibold">Free cleans used up.</p>
-            <p className="mt-1 text-sm text-white/62">Create an account or pick a plan to keep cleaning images.</p>
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-center">
-              {!isLoggedIn ? (
-                <Link href="/login?next=/dashboard" className="rounded-lg bg-white px-4 py-2 font-semibold text-ink hover:bg-mint">
-                  Sign up
-                </Link>
-              ) : null}
-              <Link href="/pricing" className="rounded-lg bg-mint px-4 py-2 font-semibold text-ink hover:bg-white">
-                Upgrade
-              </Link>
-            </div>
-          </div>
-        ) : null}
       </section>
+      )}
 
       {results.length ? (
         <section className="space-y-4">
@@ -319,20 +325,20 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
   );
 }
 
-function UsageCard({ label, value, remaining, href }: { label: string; value: string; remaining?: number | null; href?: string }) {
+function UsageCard({ label, value, remaining, href, valueClassName }: { label: string; value: string; remaining?: number | null; href?: string; valueClassName?: string }) {
   const cardTone =
     remaining === 1
-      ? { border: "border-[#EF4444]", text: "text-[#EF4444]" }
+      ? { border: "border-[#F59E0B]", text: "text-[#F59E0B]" }
       : remaining === 2 || remaining === 3
         ? { border: "border-[#F59E0B]", text: "text-[#F59E0B]" }
         : remaining === 0
-          ? { border: "border-mint", text: "text-mint" }
+          ? { border: "border-[#EF4444]", text: "text-[#EF4444]" }
           : { border: "border-white/10", text: "text-white" };
 
   return (
     <div className={`rounded-lg border bg-white/[0.035] p-4 ${remaining == null ? "border-white/10" : cardTone.border}`}>
       <p className="text-sm text-white/50">{label}</p>
-      <p className={`mt-1 text-2xl font-bold tracking-tight ${remaining == null ? "" : cardTone.text}`}>{value}</p>
+      <p className={`mt-1 text-2xl font-bold tracking-tight ${valueClassName || (remaining == null ? "" : cardTone.text)}`}>{value}</p>
       {href ? (
         <Link href={href} className="mt-2 inline-flex text-xs font-semibold text-mint hover:text-white">
           View pricing →

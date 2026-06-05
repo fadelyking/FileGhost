@@ -3,13 +3,19 @@ import { Suspense } from "react";
 import { Footer } from "@/components/footer";
 import { PricingCards } from "@/components/pricing-cards";
 import { SiteHeader } from "@/components/site-header";
+import { getCurrentUser, getProfile } from "@/lib/auth";
+import { hasPaidAccess } from "@/lib/plans";
 
 export const metadata: Metadata = {
   title: "Pricing",
   description: "Simple pricing for FileGhost image metadata cleaning."
 };
 
-export default function PricingPage() {
+export default async function PricingPage() {
+  const user = await getCurrentUser();
+  const profile = user ? await getProfile(user.id) : null;
+  const currentPlan = profile && hasPaidAccess(profile) ? profile.plan : undefined;
+
   return (
     <>
       <SiteHeader />
@@ -22,7 +28,7 @@ export default function PricingPage() {
           </p>
           <div className="mt-8">
             <Suspense fallback={<div className="rounded-lg border border-white/10 bg-white/[0.035] p-5 text-sm text-white/60">Loading pricing...</div>}>
-              <PricingCards />
+              <PricingCards currentPlan={currentPlan} />
             </Suspense>
           </div>
           <p className="mt-6 text-sm text-white/50">

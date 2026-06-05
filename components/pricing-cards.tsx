@@ -61,7 +61,7 @@ export const plans: Array<{
   }
 ];
 
-export function PricingCards() {
+export function PricingCards({ currentPlan }: { currentPlan?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loadingPlan, setLoadingPlan] = useState<PlanId | null>(null);
@@ -79,7 +79,7 @@ export function PricingCards() {
     setError("");
 
     if (plan === "free") {
-      router.push("/dashboard");
+      router.push("/app");
       return;
     }
 
@@ -120,6 +120,11 @@ export function PricingCards() {
                   : "border-line bg-panel"
             }`}
           >
+            {currentPlan === plan.id ? (
+              <div className="absolute right-4 top-4 rounded-md border border-mint/30 bg-mint/10 px-2.5 py-1 text-[11px] font-semibold text-mint">
+                Your current plan
+              </div>
+            ) : null}
             <div className={`mb-4 inline-flex items-center gap-1 rounded-md px-3 py-1 text-xs font-bold uppercase tracking-[0.08em] ${
               plan.bestValue ? "bg-[#F59E0B] text-ink" : plan.featured ? "bg-mint text-ink" : "bg-white/[0.08] text-white/70"
             }`}>
@@ -155,7 +160,7 @@ export function PricingCards() {
         ))}
       </div>
       <p className="mt-5 text-center text-xs text-white/50">
-        All plans use Stripe for secure payment. No hidden fees. <Link href="/dashboard" className="text-mint hover:text-white">Clean 5 images free.</Link>
+        All plans use Stripe for secure payment. No hidden fees. <Link href="/app" className="text-mint hover:text-white">Clean 5 images free.</Link>
       </p>
     </div>
   );

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import {
   ArrowRight,
@@ -25,6 +26,7 @@ import {
 import { Footer } from "@/components/footer";
 import { PricingCards } from "@/components/pricing-cards";
 import { SiteHeader } from "@/components/site-header";
+import { getCurrentUser } from "@/lib/auth";
 
 const removedItems = [
   [MapPin, "GPS & location data", "Remove hidden coordinates from image files."],
@@ -70,7 +72,10 @@ const faqs = [
   ]
 ];
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const user = await getCurrentUser();
+  if (user) redirect("/app");
+
   return (
     <>
       <SiteHeader />

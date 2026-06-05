@@ -14,7 +14,7 @@ export function AuthForm() {
   const [message, setMessage] = useState("");
 
   const nextPath = useMemo(() => {
-    const next = searchParams.get("next") || "/dashboard";
+    const next = searchParams.get("next") || "/app";
     const plan = searchParams.get("plan");
     return plan ? `${next}?plan=${plan}` : next;
   }, [searchParams]);

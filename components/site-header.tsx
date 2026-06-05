@@ -37,7 +37,7 @@ export function SiteHeader() {
                   {item.label}
                 </Link>
               ))}
-              <Link href="/dashboard" className="block rounded-md px-3 py-2 text-sm font-semibold text-mint hover:bg-white/10">
+              <Link href="/app" className="block rounded-md px-3 py-2 text-sm font-semibold text-mint hover:bg-white/10">
                 Clean Photos
               </Link>
             </div>

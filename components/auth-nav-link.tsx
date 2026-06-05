@@ -52,7 +52,7 @@ export function AuthNavLink() {
       <Link href="/login" className="px-2 text-sm font-semibold text-white/75 hover:text-white">
         Log in
       </Link>
-      <Link href="/dashboard" className="rounded-lg border border-mint bg-transparent px-4 py-2 text-sm font-semibold text-mint focus-ring hover:bg-mint hover:text-ink">
+      <Link href="/app" className="rounded-lg border border-mint bg-transparent px-4 py-2 text-sm font-semibold text-mint focus-ring hover:bg-mint hover:text-ink">
         Clean Photos →
       </Link>
     </div>;
@@ -72,11 +72,11 @@ export function AuthNavLink() {
           <p className="truncate text-sm font-semibold text-white">{auth.email}</p>
         </div>
         <Link
-          href="/dashboard"
+          href="/app"
           onClick={() => menuRef.current?.removeAttribute("open")}
           className="mt-2 flex min-h-10 items-center gap-2 rounded-md px-3 text-sm text-white/76 hover:bg-white/[0.08] hover:text-white"
         >
-          <LayoutDashboard size={16} /> Dashboard
+          <LayoutDashboard size={16} /> App
         </Link>
         <Link
           href="/account"
