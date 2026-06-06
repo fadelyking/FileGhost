@@ -7,8 +7,27 @@ import { getCurrentUser, getProfile } from "@/lib/auth";
 import { hasPaidAccess } from "@/lib/plans";
 
 export const metadata: Metadata = {
-  title: "Pricing",
-  description: "Simple pricing for FileGhost image metadata cleaning."
+  title: "Pricing — FileGhost | Free, Monthly, and Lifetime Plans",
+  description:
+    "Start free with 5 image cleans. Upgrade to Monthly at $4.99 or get Lifetime access for $19. No subscription required for lifetime access. Secure payment via Stripe.",
+  alternates: {
+    canonical: "https://fileghost.app/pricing"
+  },
+  robots: {
+    index: true,
+    follow: true
+  },
+  openGraph: {
+    title: "FileGhost Pricing — Start Free, Upgrade Anytime",
+    description:
+      "Start free with 5 image cleans. Upgrade to Monthly at $4.99 or get Lifetime access for $19. No subscription required for lifetime access. Secure payment via Stripe.",
+    url: "https://fileghost.app/pricing",
+    images: [{ url: "https://fileghost.app/og-image.png", width: 1200, height: 630, alt: "FileGhost — Clean hidden photo metadata before you post" }]
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: [{ url: "https://fileghost.app/og-image.png", alt: "FileGhost — Remove GPS, camera info, and hidden data from your photos" }]
+  }
 };
 
 export default async function PricingPage() {

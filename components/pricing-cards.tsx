@@ -105,11 +105,15 @@ export function PricingCards({ currentPlan }: { currentPlan?: string }) {
     window.location.href = payload.url;
   }
 
+  const primaryPlans = plans.filter((plan) => plan.id !== "three_month_pass");
+  const threeMonthPlan = plans.find((plan) => plan.id === "three_month_pass")!;
+  const isPaidUser = Boolean(currentPlan);
+
   return (
     <div>
       {error ? <p className="mb-4 rounded-lg border border-coral/30 bg-coral/10 p-3 text-sm text-coral">{error}</p> : null}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {plans.map((plan) => (
+      <div className="grid gap-4 md:grid-cols-3">
+        {primaryPlans.map((plan) => (
           <article
             key={plan.id}
             className={`relative rounded-lg border p-5 ${
@@ -121,7 +125,7 @@ export function PricingCards({ currentPlan }: { currentPlan?: string }) {
             }`}
           >
             {currentPlan === plan.id ? (
-              <div className="absolute right-4 top-4 rounded-md border border-mint/30 bg-mint/10 px-2.5 py-1 text-[11px] font-semibold text-mint">
+              <div className="absolute right-4 top-4 rounded-full border border-mint bg-[color:var(--color-surface-alt)] px-2 py-0.5 text-[11px] text-mint">
                 Your current plan
               </div>
             ) : null}
@@ -144,20 +148,45 @@ export function PricingCards({ currentPlan }: { currentPlan?: string }) {
                 </li>
               ))}
             </ul>
-            <button
-              type="button"
-              onClick={() => void startCheckout(plan.id)}
-              disabled={loadingPlan === plan.id}
-              className={`mt-6 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-center text-sm font-semibold focus-ring disabled:cursor-not-allowed disabled:opacity-70 ${
-                plan.featured ? "bg-mint text-ink hover:bg-white" : "bg-white text-ink hover:bg-mint"
-              }`}
-            >
-              {loadingPlan === plan.id ? <Loader2 className="animate-spin" size={16} /> : null}
-              {plan.cta}
-            </button>
+            {!isPaidUser ? (
+              <button
+                type="button"
+                onClick={() => void startCheckout(plan.id)}
+                disabled={loadingPlan === plan.id}
+                className={`mt-6 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-center text-sm font-semibold focus-ring disabled:cursor-not-allowed disabled:opacity-70 ${
+                  plan.featured ? "bg-mint text-ink hover:bg-white" : "bg-white text-ink hover:bg-mint"
+                }`}
+              >
+                {loadingPlan === plan.id ? <Loader2 className="animate-spin" size={16} /> : null}
+                {plan.cta}
+              </button>
+            ) : null}
             {plan.noteBelow ? <p className="mt-2 text-center text-[11px] text-white/45">{plan.noteBelow}</p> : null}
           </article>
         ))}
+      </div>
+      <div className="mx-auto mt-4 flex max-w-2xl flex-col gap-4 rounded-[10px] border border-line bg-[color:var(--color-surface-alt)] p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[color:var(--color-text-muted)]">Also available</p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-semibold text-[color:var(--color-text)]">3-Month Pass</h3>
+            {currentPlan === threeMonthPlan.id ? (
+              <span className="rounded-full border border-mint bg-[color:var(--color-surface-alt)] px-2 py-0.5 text-[11px] text-mint">Your current plan</span>
+            ) : null}
+          </div>
+          <p className="mt-1 text-[13px] text-[color:var(--color-text-muted)]">Unlimited for 90 days — $12 one-time, no renewal</p>
+        </div>
+        {!isPaidUser ? (
+          <button
+            type="button"
+            onClick={() => void startCheckout(threeMonthPlan.id)}
+            disabled={loadingPlan === threeMonthPlan.id}
+            className="inline-flex min-h-10 items-center justify-center rounded-lg border border-line px-5 text-sm font-semibold text-[color:var(--color-text-muted)] hover:border-mint hover:text-[color:var(--color-text)] disabled:opacity-70"
+          >
+            {loadingPlan === threeMonthPlan.id ? <Loader2 className="mr-2 animate-spin" size={16} /> : null}
+            Get 3 Months
+          </button>
+        ) : null}
       </div>
       <p className="mt-5 text-center text-xs text-white/50">
         All plans use Stripe for secure payment. No hidden fees. <Link href="/app" className="text-mint hover:text-white">Clean 5 images free.</Link>

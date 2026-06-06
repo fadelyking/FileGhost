@@ -4,7 +4,17 @@ import { SiteHeader } from "@/components/site-header";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description: "FileGhost privacy policy."
+  description: "FileGhost privacy policy.",
+  openGraph: {
+    title: "FileGhost Privacy Policy",
+    description: "FileGhost privacy policy.",
+    url: "https://fileghost.app/privacy",
+    images: [{ url: "https://fileghost.app/og-image.png", width: 1200, height: 630, alt: "FileGhost — Clean hidden photo metadata before you post" }]
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: [{ url: "https://fileghost.app/og-image.png", alt: "FileGhost — Remove GPS, camera info, and hidden data from your photos" }]
+  }
 };
 
 export default function PrivacyPage() {

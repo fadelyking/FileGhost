@@ -36,7 +36,24 @@ export const metadata: Metadata = {
       "Clean your images before you post. Remove hidden metadata from photos in seconds.",
     url: "/",
     siteName: "FileGhost",
-    type: "website"
+    type: "website",
+    images: [
+      {
+        url: "https://fileghost.app/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "FileGhost — Clean hidden photo metadata before you post"
+      }
+    ]
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: [
+      {
+        url: "https://fileghost.app/og-image.png",
+        alt: "FileGhost — Remove GPS, camera info, and hidden data from your photos"
+      }
+    ]
   },
   robots: {
     index: true,

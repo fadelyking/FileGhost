@@ -7,6 +7,7 @@ import type { MetadataSummary } from "@/lib/metadata";
 type Props = {
   metadataBefore: MetadataSummary;
   metadataAfter: MetadataSummary;
+  showEducationalCleanState?: boolean;
 };
 
 type CategoryState = "removed" | "not_found" | "partial";
@@ -41,7 +42,7 @@ const technicalRows = [
   { label: "C2PA markers", before: "C2PA/provenance data", after: "C2PA/provenance data" }
 ];
 
-export function MetadataPreview({ metadataBefore, metadataAfter }: Props) {
+export function MetadataPreview({ metadataBefore, metadataAfter, showEducationalCleanState = true }: Props) {
   const [showDetails, setShowDetails] = useState(false);
   const categoryStates = useMemo(() => getCategoryStates(metadataBefore, metadataAfter), [metadataBefore, metadataAfter]);
   const foundCount = categoryStates.filter((item) => item.state !== "not_found").length;
@@ -61,10 +62,15 @@ export function MetadataPreview({ metadataBefore, metadataAfter }: Props) {
       ) : (
         <div className="rounded-lg border border-mint/20 bg-mint/[0.05] p-5 text-center">
           <CheckCircle2 className="mx-auto text-mint" size={32} />
-          <h4 className="mt-3 text-lg font-bold text-[color:var(--color-text)]">This file was already clean.</h4>
+          <h4 className="mt-3 text-lg font-bold text-[color:var(--color-text)]">
+            {showEducationalCleanState ? "Good news — this file was already clean." : "This file had no metadata to remove."}
+          </h4>
           <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[color:var(--color-text-muted)]">
-            No sensitive metadata was found. Your file is ready to download as-is.
+            {showEducationalCleanState
+              ? "No sensitive metadata was detected in this file. This is common with screenshots and images that have already been processed."
+              : "Your download is ready."}
           </p>
+          {showEducationalCleanState ? <CleanEducationPanel /> : null}
         </div>
       )}
 
@@ -79,6 +85,38 @@ export function MetadataPreview({ metadataBefore, metadataAfter }: Props) {
       </button>
 
       {showDetails ? <TechnicalTable metadataBefore={metadataBefore} metadataAfter={metadataAfter} /> : null}
+    </div>
+  );
+}
+
+function CleanEducationPanel() {
+  const checked = [
+    "GPS coordinates and location data",
+    "Camera model and device identifiers",
+    "Software and editor tags",
+    "XMP and IPTC metadata",
+    "Timestamps and edit history",
+    "AI provenance markers (C2PA, where supported)",
+    "Embedded notes and comments"
+  ];
+
+  return (
+    <div className="mt-4 rounded-[10px] border border-line bg-[color:var(--color-surface-alt)] p-5 text-left">
+      <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-[color:var(--color-text-muted)]">What FileGhost checks for</p>
+      <p className="mt-2 text-[13px] text-[color:var(--color-text-muted)]">
+        In typical photos taken on a phone or camera, we remove:
+      </p>
+      <div className="mt-3 space-y-2">
+        {checked.map((item) => (
+          <div key={item} className="flex gap-2 text-[13px] text-[color:var(--color-text-muted)]">
+            <span className="font-bold text-mint">✓</span>
+            <span>{item}</span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-xs italic text-[color:var(--color-text-muted)]">
+        Try uploading a photo taken on your phone — you may be surprised what we find.
+      </p>
     </div>
   );
 }
