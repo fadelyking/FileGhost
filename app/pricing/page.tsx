@@ -6,10 +6,12 @@ import { SiteHeader } from "@/components/site-header";
 import { getCurrentUser, getProfile } from "@/lib/auth";
 import { hasPaidAccess } from "@/lib/plans";
 
+const pricingDescription =
+  "Start with 5 free image cleans, then create a free account to unlock 5 more. Upgrade to Monthly at $4.99 or get Lifetime access for $19.";
+
 export const metadata: Metadata = {
   title: "Pricing — FileGhost | Free, Monthly, and Lifetime Plans",
-  description:
-    "Start free with 5 image cleans. Upgrade to Monthly at $4.99 or get Lifetime access for $19. No subscription required for lifetime access. Secure payment via Stripe.",
+  description: pricingDescription,
   alternates: {
     canonical: "https://fileghost.app/pricing"
   },
@@ -18,16 +20,69 @@ export const metadata: Metadata = {
     follow: true
   },
   openGraph: {
-    title: "FileGhost Pricing — Start Free, Upgrade Anytime",
-    description:
-      "Start free with 5 image cleans. Upgrade to Monthly at $4.99 or get Lifetime access for $19. No subscription required for lifetime access. Secure payment via Stripe.",
+    title: "Pricing — FileGhost | Free, Monthly, and Lifetime Plans",
+    description: pricingDescription,
     url: "https://fileghost.app/pricing",
-    images: [{ url: "https://fileghost.app/og-image.png", width: 1200, height: 630, alt: "FileGhost — Clean hidden photo metadata before you post" }]
+    type: "website",
+    siteName: "FileGhost",
+    images: [
+      {
+        url: "https://fileghost.app/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "FileGhost — Clean hidden photo metadata before you post"
+      }
+    ]
   },
   twitter: {
     card: "summary_large_image",
-    images: [{ url: "https://fileghost.app/og-image.png", alt: "FileGhost — Remove GPS, camera info, and hidden data from your photos" }]
+    title: "Pricing — FileGhost | Free, Monthly, and Lifetime Plans",
+    description: pricingDescription,
+    images: [
+      {
+        url: "https://fileghost.app/og-image.png",
+        alt: "FileGhost — Clean hidden photo metadata before you post"
+      }
+    ]
   }
+};
+
+const pricingJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Product",
+  name: "FileGhost",
+  description: "FileGhost removes hidden metadata from image files before creators post online.",
+  url: "https://fileghost.app/pricing",
+  offers: [
+    {
+      "@type": "Offer",
+      name: "Free",
+      price: "0",
+      priceCurrency: "USD",
+      description: "5 guest cleans, plus 5 more after free signup"
+    },
+    {
+      "@type": "Offer",
+      name: "Monthly",
+      price: "4.99",
+      priceCurrency: "USD",
+      description: "Unlimited image cleaning, billed monthly"
+    },
+    {
+      "@type": "Offer",
+      name: "Lifetime",
+      price: "19",
+      priceCurrency: "USD",
+      description: "One-time payment, lifetime unlimited access"
+    },
+    {
+      "@type": "Offer",
+      name: "3-Month Pass",
+      price: "12",
+      priceCurrency: "USD",
+      description: "One-time payment for 90 days of unlimited image cleaning"
+    }
+  ]
 };
 
 export default async function PricingPage() {
@@ -37,13 +92,17 @@ export default async function PricingPage() {
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(pricingJsonLd) }}
+      />
       <SiteHeader />
       <main className="px-4 py-12">
-        <section className="mx-auto max-w-6xl">
-          <h1 className="text-4xl font-bold tracking-tight">Pricing that fits a creator workflow.</h1>
+        <section className="mx-auto max-w-6xl" aria-labelledby="pricing-page-heading">
+          <h1 id="pricing-page-heading" className="text-4xl font-bold tracking-tight">Pricing that fits a creator workflow.</h1>
           <p className="mt-4 max-w-2xl text-white/64">
-            Start with 5 free image cleans. Upgrade to unlimited cleaning when you want a faster,
-            repeatable pre-posting step.
+            Start with 5 free guest cleans, then create a free account to unlock 5 more.
+            Upgrade to unlimited cleaning when you want a faster, repeatable pre-posting step.
           </p>
           <div className="mt-8">
             <Suspense fallback={<div className="rounded-lg border border-white/10 bg-white/[0.035] p-5 text-sm text-white/60">Loading pricing...</div>}>

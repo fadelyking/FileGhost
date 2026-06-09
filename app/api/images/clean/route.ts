@@ -9,7 +9,7 @@ import {
   isAllowedImageType,
   readSharpMetadata
 } from "@/lib/metadata";
-import { canProcessImages, FREE_IMAGE_LIMIT, getPlanAccess } from "@/lib/plans";
+import { canProcessImages, GUEST_FREE_IMAGE_LIMIT, getPlanAccess } from "@/lib/plans";
 import { sanitizeFilename } from "@/lib/files";
 
 export const runtime = "nodejs";
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
   if (user && !canProcessImages(profile, parsedFiles.length)) {
     return NextResponse.json(
       {
-        error: "You have used your 5 free cleans. Choose a paid plan to keep cleaning images.",
+        error: "You have used your 10 free cleans. Choose a paid plan to keep cleaning images.",
         usage: getPlanAccess(profile)
       },
       { status: 402 }
@@ -130,9 +130,9 @@ export async function POST(request: Request) {
     ? getPlanAccess(updatedProfile)
     : {
         freeUsed: 0,
-        freeLimit: FREE_IMAGE_LIMIT,
+        freeLimit: GUEST_FREE_IMAGE_LIMIT,
         plan: "guest",
-        remaining: FREE_IMAGE_LIMIT,
+        remaining: GUEST_FREE_IMAGE_LIMIT,
         paid: false
       };
 

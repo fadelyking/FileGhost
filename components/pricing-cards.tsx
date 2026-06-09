@@ -25,7 +25,7 @@ export const plans: Array<{
     price: "$0",
     note: "",
     badge: "Start here",
-    features: ["5 image cleans", "Metadata preview before download", "Individual file downloads", "No account required to try"],
+    features: ["5 guest cleans", "5 more after free signup", "Metadata preview before download", "Individual file downloads"],
     cta: "Clean 5 Images Free"
   },
   {

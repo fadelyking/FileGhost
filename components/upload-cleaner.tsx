@@ -7,7 +7,7 @@ import { createBrowserClient } from "@supabase/ssr";
 import { Download, FileArchive, Loader2, Lock, UploadCloud, X, Zap } from "lucide-react";
 import { MetadataPreview } from "@/components/metadata-preview";
 import type { MetadataSummary } from "@/lib/metadata";
-import { FREE_IMAGE_LIMIT } from "@/lib/plans";
+import { FREE_IMAGE_LIMIT, GUEST_FREE_IMAGE_LIMIT } from "@/lib/plans";
 
 type CleanedImage = {
   id: string;
@@ -68,9 +68,9 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
       const used = Number(localStorage.getItem("FileGhost_guest_used") || 0);
       setUsage({
         freeUsed: used,
-        freeLimit: FREE_IMAGE_LIMIT,
+        freeLimit: GUEST_FREE_IMAGE_LIMIT,
         plan: "guest",
-        remaining: Math.max(FREE_IMAGE_LIMIT - used, 0),
+        remaining: Math.max(GUEST_FREE_IMAGE_LIMIT - used, 0),
         paid: false
       });
     }
@@ -90,7 +90,9 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
   }, [isProcessing]);
 
   const selectedCount = files.length;
-  const remaining = usage.remaining ?? FREE_IMAGE_LIMIT;
+  const isGuest = !isLoggedIn;
+  const activeFreeLimit = isGuest ? GUEST_FREE_IMAGE_LIMIT : FREE_IMAGE_LIMIT;
+  const remaining = usage.remaining ?? activeFreeLimit;
   const isFreePlan = !usage.paid;
   const hasNoFreeCredits = isFreePlan && remaining === 0;
   const canUse = usage.paid || selectedCount <= remaining;
@@ -127,7 +129,7 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
     }
 
     if (!canUse) {
-      setError(isLoggedIn ? "You have used your 5 free cleans. Upgrade to keep cleaning." : "You have used your 5 free guest cleans. Sign up or upgrade to keep cleaning.");
+      setError(isLoggedIn ? "You have used your 10 free cleans. Upgrade to keep cleaning." : "You have used your 5 free guest cleans. Create a free account to unlock 5 more.");
       return;
     }
 
@@ -159,9 +161,9 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
         localStorage.setItem("FileGhost_guest_used", String(nextUsed));
         setUsage({
           freeUsed: nextUsed,
-          freeLimit: FREE_IMAGE_LIMIT,
+          freeLimit: GUEST_FREE_IMAGE_LIMIT,
           plan: "guest",
-          remaining: Math.max(FREE_IMAGE_LIMIT - nextUsed, 0),
+          remaining: Math.max(GUEST_FREE_IMAGE_LIMIT - nextUsed, 0),
           paid: false
         });
       }
@@ -224,7 +226,7 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
         ) : (
           <UsageCard label="Free cleans remaining" value={usage.remaining === 0 ? "None left" : String(usage.remaining)} remaining={usage.remaining} />
         )}
-        <UsageCard label="Your plan" value={usage.paid ? `? ${planName(usage.plan)}` : "Free"} valueClassName={usage.paid ? "text-mint" : undefined} />
+        <UsageCard label="Your plan" value={usage.paid ? planName(usage.plan) : "Free"} valueClassName={usage.paid ? "text-mint" : undefined} />
       </section>
       ) : null}
 
@@ -248,14 +250,24 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
       {hasNoFreeCredits ? (
         <section className="rounded-xl border border-mint bg-panel p-10 text-center">
           <Lock className="mx-auto text-mint" size={32} />
-          <h2 className="mt-5 text-[22px] font-bold text-[color:var(--color-text)]">You&apos;ve used your 5 free cleans.</h2>
+          <h2 className="mt-5 text-[22px] font-bold text-[color:var(--color-text)]">
+            {isGuest ? "You've used your 5 free guest cleans." : "You've used your 10 free cleans."}
+          </h2>
           <p className="mx-auto mt-2 max-w-md text-[15px] leading-7 text-[color:var(--color-text-muted)]">
-            Upgrade to keep cleaning — unlimited images, no restrictions, files always deleted after processing.
+            {isGuest
+              ? "Create a free account to unlock 5 more cleans. No card needed."
+              : "Upgrade to keep cleaning — unlimited images, no restrictions, files always deleted after processing."}
           </p>
           <div className="mx-auto mt-6 flex max-w-xl flex-col justify-center gap-3 sm:flex-row">
-            <button type="button" onClick={() => void startCheckout("lifetime")} className="inline-flex min-h-14 flex-1 items-center justify-center rounded-lg bg-mint px-8 py-4 text-base font-bold text-ink hover:bg-white">
-              Lifetime Access — $19 one-time
-            </button>
+            {isGuest ? (
+              <button type="button" onClick={() => setAuthModalOpen(true)} className="inline-flex min-h-14 flex-1 items-center justify-center rounded-lg bg-mint px-8 py-4 text-base font-bold text-ink hover:bg-white">
+                Create Free Account — Get 5 More
+              </button>
+            ) : (
+              <button type="button" onClick={() => void startCheckout("lifetime")} className="inline-flex min-h-14 flex-1 items-center justify-center rounded-lg bg-mint px-8 py-4 text-base font-bold text-ink hover:bg-white">
+                Lifetime Access — $19 one-time
+              </button>
+            )}
             <button type="button" onClick={() => void startCheckout("monthly")} className="inline-flex min-h-14 flex-1 items-center justify-center rounded-lg border border-line px-8 py-3.5 text-[15px] font-semibold text-white hover:border-mint">
               Monthly — $4.99/mo
             </button>
@@ -264,7 +276,9 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
           <p className="mt-4 text-[11px] text-[color:var(--color-text-muted)]">
             Secure payment via Stripe. No hidden fees. <Link href="/pricing" className="text-mint hover:text-white">View all options ?</Link>
           </p>
-          <p className="mt-2 text-xs text-[color:var(--color-text-muted)]">Your cleaned files above are still available to download.</p>
+          <p className="mt-2 text-xs text-[color:var(--color-text-muted)]">
+            {isGuest ? "Already have an account? Sign in to use your extra free cleans." : "Your cleaned files above are still available to download."}
+          </p>
         </section>
       ) : (
       <section
@@ -395,7 +409,8 @@ function UpgradeAuthModal({ open, plan, onClose }: { open: boolean; plan: Checko
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
-  const checkoutPath = plan ? `/pricing?plan=${plan}` : "/pricing";
+  const checkoutPath = plan ? `/pricing?plan=${plan}` : "/app";
+  const isCreditUnlock = !plan;
 
   useEffect(() => {
     if (!open) return;
@@ -485,8 +500,12 @@ function UpgradeAuthModal({ open, plan, onClose }: { open: boolean; plan: Checko
       <div ref={modalRef} className="w-full max-w-md rounded-xl border border-line bg-panel p-6 shadow-glow">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 id="upgrade-auth-title" className="text-xl font-bold">Unlock unlimited cleaning</h2>
-            <p className="mt-2 text-sm leading-6 text-[color:var(--color-text-muted)]">Create a free account to upgrade. Takes 10 seconds.</p>
+            <h2 id="upgrade-auth-title" className="text-xl font-bold">
+              {isCreditUnlock ? "Unlock 5 more free cleans" : "Unlock unlimited cleaning"}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-[color:var(--color-text-muted)]">
+              {isCreditUnlock ? "Create a free account and keep cleaning. No card needed." : "Create a free account to upgrade. Takes 10 seconds."}
+            </p>
           </div>
           <button type="button" onClick={onClose} className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-white/60 hover:bg-white/10 hover:text-white" aria-label="Close upgrade dialog">
             <X size={18} />

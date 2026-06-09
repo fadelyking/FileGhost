@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import {
@@ -27,6 +28,47 @@ import { Footer } from "@/components/footer";
 import { PricingCards } from "@/components/pricing-cards";
 import { SiteHeader } from "@/components/site-header";
 import { getCurrentUser } from "@/lib/auth";
+
+const landingDescription =
+  "Remove GPS, camera info, EXIF data, and AI provenance markers from photos before posting. Clean your first 5 images free.";
+
+export const metadata: Metadata = {
+  title: "FileGhost — Remove Hidden Photo Metadata Before Posting",
+  description: landingDescription,
+  alternates: {
+    canonical: "https://fileghost.app/"
+  },
+  robots: {
+    index: true,
+    follow: true
+  },
+  openGraph: {
+    title: "FileGhost — Remove Hidden Photo Metadata Before Posting",
+    description: landingDescription,
+    url: "https://fileghost.app/",
+    type: "website",
+    siteName: "FileGhost",
+    images: [
+      {
+        url: "https://fileghost.app/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "FileGhost — Clean hidden photo metadata before you post"
+      }
+    ]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "FileGhost — Remove Hidden Photo Metadata Before Posting",
+    description: landingDescription,
+    images: [
+      {
+        url: "https://fileghost.app/og-image.png",
+        alt: "FileGhost — Clean hidden photo metadata before you post"
+      }
+    ]
+  }
+};
 
 const removedItems = [
   [MapPin, "GPS & location data", "Remove hidden coordinates from image files."],
@@ -72,26 +114,82 @@ const faqs = [
   ]
 ];
 
+const webApplicationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "FileGhost",
+  url: "https://fileghost.app",
+  description:
+    "FileGhost removes hidden metadata from image files including GPS location, EXIF data, camera info, XMP, IPTC, and AI provenance markers before users post to social platforms.",
+  applicationCategory: "UtilitiesApplication",
+  operatingSystem: "Web",
+  offers: [
+    {
+      "@type": "Offer",
+      name: "Free",
+      price: "0",
+      priceCurrency: "USD",
+      description: "5 free image cleans, no account required"
+    },
+    {
+      "@type": "Offer",
+      name: "Monthly",
+      price: "4.99",
+      priceCurrency: "USD",
+      description: "Unlimited image cleaning, billed monthly"
+    },
+    {
+      "@type": "Offer",
+      name: "Lifetime",
+      price: "19",
+      priceCurrency: "USD",
+      description: "One-time payment, lifetime unlimited access"
+    }
+  ]
+};
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map(([question, answer]) => ({
+    "@type": "Question",
+    name: question,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: answer
+    }
+  }))
+};
+
 export default async function LandingPage() {
   const user = await getCurrentUser();
   if (user) redirect("/app");
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(webApplicationJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       <SiteHeader />
       <main>
-        <section className="section-pad">
+        <section className="section-pad" aria-labelledby="hero-heading">
           <div className="section-wrap grid gap-10 lg:grid-cols-2 lg:items-stretch">
             <div className="flex flex-col justify-center">
               <div className="mb-5 inline-flex items-center gap-2 rounded-md border border-line bg-panel px-3 py-1 text-xs font-bold uppercase tracking-[0.08em] text-mint">
                 <Shield size={14} /> Privacy-forward image cleaner
               </div>
-              <h1 className="max-w-3xl text-[34px] font-extrabold leading-[1.15] tracking-tight text-[color:var(--color-text)] md:text-[52px]">
+              <h1 id="hero-heading" className="max-w-3xl text-[34px] font-extrabold leading-[1.15] tracking-tight text-[color:var(--color-text)] md:text-[52px]">
                 Your photos carry more than you think.
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-[color:var(--color-text-muted)]">
-                Strip hidden metadata — GPS location, camera info, editor tags — before you post to
-                TikTok, Instagram, or anywhere else. First 5 cleans are free. No account needed.
+                FileGhost is an image metadata remover built to remove metadata from photos, strip EXIF data,
+                remove GPS from photos, and clean photo metadata before you post to TikTok, Instagram,
+                or anywhere else. First 5 cleans are free. No account needed.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
@@ -138,7 +236,7 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section className="border-y border-line bg-[color:var(--color-surface-alt)] py-5">
+        <section className="border-y border-line bg-[color:var(--color-surface-alt)] py-5" aria-label="FileGhost trust signals">
           <div className="section-wrap grid grid-cols-2 gap-5 md:grid-cols-4 md:gap-12">
             {[
               [ImageIcon, "5 Free Cleans", "No signup required"],
@@ -160,15 +258,15 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section id="metadata" className="section-pad">
+        <section id="metadata" className="section-pad" aria-labelledby="metadata-heading">
           <div className="section-wrap">
             <div className="max-w-3xl">
-              <h2 className="text-[26px] font-bold tracking-tight md:text-[32px]">What&apos;s hiding in your photos?</h2>
+              <h2 id="metadata-heading" className="text-[26px] font-bold tracking-tight md:text-[32px]">What&apos;s hiding in your photos?</h2>
               <p className="mt-4 leading-7 text-white/65">
                 Every time you take a photo, your device embeds invisible data into the file. This can include your exact GPS location, the device you used, the apps that edited it, timestamps, and more. Most people never know it&apos;s there.
               </p>
               <p className="mt-4 leading-7 text-white/65">
-                When you post online, that data travels with the file. FileGhost strips it out before you share — so what you post is just the image, nothing else.
+                When you post online, that data travels with the file. FileGhost strips it out before you share, so what you post is just the image, nothing else. It is a photo privacy tool for removing metadata before posting, cleaning image data before Instagram, and reducing hidden tags before TikTok.
               </p>
             </div>
             <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -186,9 +284,9 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section id="how-it-works" className="section-pad bg-[color:var(--color-surface-alt)]">
+        <section id="how-it-works" className="section-pad bg-[color:var(--color-surface-alt)]" aria-labelledby="how-heading">
           <div className="section-wrap">
-            <h2 className="text-[26px] font-bold tracking-tight md:text-[32px]">Upload, clean, download.</h2>
+            <h2 id="how-heading" className="text-[26px] font-bold tracking-tight md:text-[32px]">Upload, clean, download.</h2>
             <div className="relative mt-8 grid gap-4 md:grid-cols-4">
               <div className="absolute left-8 right-8 top-8 hidden h-px bg-line md:block" />
               {[
@@ -207,9 +305,9 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section className="section-pad">
+        <section className="section-pad" aria-labelledby="audience-heading">
           <div className="section-wrap">
-            <h2 className="text-[26px] font-bold tracking-tight md:text-[32px]">Built for anyone who posts photos online.</h2>
+            <h2 id="audience-heading" className="text-[26px] font-bold tracking-tight md:text-[32px]">Built for anyone who posts photos online.</h2>
             <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {audiences.map(([Icon, title, sub]) => {
                 const AudienceIcon = Icon as typeof Smartphone;
@@ -225,10 +323,10 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section id="pricing" className="section-pad bg-[color:var(--color-surface-alt)]">
+        <section id="pricing" className="section-pad bg-[color:var(--color-surface-alt)]" aria-labelledby="pricing-heading">
           <div className="section-wrap">
             <div className="mb-8">
-              <h2 className="text-[26px] font-bold tracking-tight md:text-[32px]">Simple pricing. Start free.</h2>
+              <h2 id="pricing-heading" className="text-[26px] font-bold tracking-tight md:text-[32px]">Simple pricing. Start free.</h2>
               <p className="mt-3 text-white/60">Upgrade when cleaning becomes part of your regular workflow.</p>
             </div>
             <Suspense fallback={<div className="surface-card p-5 text-sm text-white/60">Loading pricing...</div>}>
@@ -237,9 +335,9 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section className="section-pad">
+        <section className="section-pad" aria-labelledby="privacy-heading">
           <div className="section-wrap">
-            <h2 className="text-[26px] font-bold tracking-tight md:text-[32px]">Privacy is the product, not the promise.</h2>
+            <h2 id="privacy-heading" className="text-[26px] font-bold tracking-tight md:text-[32px]">Privacy is the product, not the promise.</h2>
             <div className="mt-8 grid gap-4 md:grid-cols-3">
               {[
                 [Lock, "Private by design", "No public file sharing. No data sold. Files are processed and deleted. We don't store your images."],
@@ -259,9 +357,9 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section className="section-pad bg-[color:var(--color-surface-alt)]">
+        <section className="section-pad bg-[color:var(--color-surface-alt)]" aria-labelledby="faq-heading">
           <div className="section-wrap max-w-4xl">
-            <h2 className="text-[26px] font-bold tracking-tight md:text-[32px]">FAQ</h2>
+            <h2 id="faq-heading" className="text-[26px] font-bold tracking-tight md:text-[32px]">FAQ</h2>
             <div className="mt-6 overflow-hidden rounded-xl border border-line bg-panel">
               {faqs.map(([q, a]) => (
                 <details key={q} className="group border-b border-line last:border-b-0">
@@ -276,9 +374,9 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section className="border-t-4 border-mint bg-[color:var(--color-surface-alt)] px-4 py-14 text-center">
+        <section className="border-t-4 border-mint bg-[color:var(--color-surface-alt)] px-4 py-14 text-center" aria-labelledby="final-cta-heading">
           <div className="mx-auto max-w-3xl">
-            <h2 className="text-[26px] font-bold tracking-tight md:text-[32px]">Clean your images before you post.</h2>
+            <h2 id="final-cta-heading" className="text-[26px] font-bold tracking-tight md:text-[32px]">Clean your images before you post.</h2>
             <p className="mx-auto mt-3 max-w-2xl text-white/60">
               Remove GPS, device info, and hidden file data in seconds. First 5 cleans are free — no account needed.
             </p>

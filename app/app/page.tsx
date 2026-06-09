@@ -3,11 +3,15 @@ import { Footer } from "@/components/footer";
 import { SiteHeader } from "@/components/site-header";
 import { UploadCleaner } from "@/components/upload-cleaner";
 import { getCurrentUser, getProfile } from "@/lib/auth";
-import { FREE_IMAGE_LIMIT, getPlanAccess } from "@/lib/plans";
+import { GUEST_FREE_IMAGE_LIMIT, getPlanAccess } from "@/lib/plans";
 
 export const metadata: Metadata = {
   title: "App",
-  description: "Clean and download private image files."
+  description: "Clean and download private image files.",
+  robots: {
+    index: false,
+    follow: false
+  }
 };
 
 export const dynamic = "force-dynamic";
@@ -20,9 +24,9 @@ export default async function AppPage() {
     ? getPlanAccess(profile)
     : {
         freeUsed: 0,
-        freeLimit: FREE_IMAGE_LIMIT,
+        freeLimit: GUEST_FREE_IMAGE_LIMIT,
         plan: "guest",
-        remaining: FREE_IMAGE_LIMIT,
+        remaining: GUEST_FREE_IMAGE_LIMIT,
         paid: false
       };
 

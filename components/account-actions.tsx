@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export function BillingPortalButton({ disabled, variant = "primary" }: { disabled: boolean; variant?: "primary" | "secondary" }) {
@@ -41,14 +42,42 @@ export function BillingPortalButton({ disabled, variant = "primary" }: { disable
 }
 
 export function SignOutButton() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function signOut() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/auth/signout", { method: "POST" });
+
+      if (!response.ok) {
+        setError("Could not sign out. Try refreshing the page.");
+        setLoading(false);
+        return;
+      }
+
+      router.replace("/login");
+      router.refresh();
+    } catch {
+      setError("Could not sign out. Try refreshing the page.");
+      setLoading(false);
+    }
+  }
+
   return (
-    <form action="/api/auth/signout" method="post">
+    <div>
       <button
-        type="submit"
-        className="cursor-pointer text-sm text-[color:var(--color-text-muted)] underline-offset-4 hover:text-[color:var(--color-text)] hover:underline"
+        type="button"
+        disabled={loading}
+        onClick={() => void signOut()}
+        className="cursor-pointer text-sm text-[color:var(--color-text-muted)] underline-offset-4 hover:text-[color:var(--color-text)] hover:underline disabled:cursor-not-allowed disabled:opacity-60"
       >
-        Sign out
+        {loading ? "Signing out..." : "Sign out"}
       </button>
-    </form>
+      {error ? <p className="mt-2 text-sm text-coral">{error}</p> : null}
+    </div>
   );
 }

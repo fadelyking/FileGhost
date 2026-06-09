@@ -2,18 +2,44 @@ import type { Metadata } from "next";
 import { Footer } from "@/components/footer";
 import { SiteHeader } from "@/components/site-header";
 
+const privacyDescription =
+  "FileGhost processes images privately. Files are deleted after cleaning. No training on user images. No public sharing. Read our full privacy policy.";
+
 export const metadata: Metadata = {
-  title: "Privacy Policy",
-  description: "FileGhost privacy policy.",
+  title: "Privacy Policy — FileGhost",
+  description: privacyDescription,
+  alternates: {
+    canonical: "https://fileghost.app/privacy"
+  },
+  robots: {
+    index: true,
+    follow: true
+  },
   openGraph: {
-    title: "FileGhost Privacy Policy",
-    description: "FileGhost privacy policy.",
+    title: "Privacy Policy — FileGhost",
+    description: privacyDescription,
     url: "https://fileghost.app/privacy",
-    images: [{ url: "https://fileghost.app/og-image.png", width: 1200, height: 630, alt: "FileGhost — Clean hidden photo metadata before you post" }]
+    type: "website",
+    siteName: "FileGhost",
+    images: [
+      {
+        url: "https://fileghost.app/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "FileGhost — Clean hidden photo metadata before you post"
+      }
+    ]
   },
   twitter: {
     card: "summary_large_image",
-    images: [{ url: "https://fileghost.app/og-image.png", alt: "FileGhost — Remove GPS, camera info, and hidden data from your photos" }]
+    title: "Privacy Policy — FileGhost",
+    description: privacyDescription,
+    images: [
+      {
+        url: "https://fileghost.app/og-image.png",
+        alt: "FileGhost — Clean hidden photo metadata before you post"
+      }
+    ]
   }
 };
 

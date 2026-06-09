@@ -8,7 +8,11 @@ import { getCurrentUser } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Login",
-  description: "Sign in to FileGhost."
+  description: "Sign in to FileGhost.",
+  robots: {
+    index: false,
+    follow: false
+  }
 };
 
 export default async function LoginPage() {

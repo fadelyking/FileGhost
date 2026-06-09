@@ -1,4 +1,5 @@
-export const FREE_IMAGE_LIMIT = 5;
+export const GUEST_FREE_IMAGE_LIMIT = 5;
+export const FREE_IMAGE_LIMIT = 10;
 
 export type Plan = "free" | "monthly" | "three_month_pass" | "lifetime";
 

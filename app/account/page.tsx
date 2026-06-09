@@ -9,7 +9,11 @@ import { hasPaidAccess, planLabel } from "@/lib/plans";
 
 export const metadata: Metadata = {
   title: "Account & Billing",
-  description: "Manage FileGhost account and billing."
+  description: "Manage FileGhost account and billing.",
+  robots: {
+    index: false,
+    follow: false
+  }
 };
 
 export const dynamic = "force-dynamic";

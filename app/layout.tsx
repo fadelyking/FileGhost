@@ -1,20 +1,21 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || "https://fileghost.app"),
   title: {
-    default: "Image Metadata Remover | Strip EXIF, C2PA & Hidden Photo Data",
+    default: "FileGhost",
     template: "%s | FileGhost"
   },
   description:
     "Remove hidden metadata from your images, including EXIF, XMP, GPS, editing software tags and C2PA/provenance data. Fast, private, mobile-friendly image cleaner for creators.",
   icons: {
     icon: [
+      { url: "/favicon.ico", sizes: "any" },
       { url: "/favicon.svg", type: "image/svg+xml" }
     ],
-    shortcut: "/favicon.svg",
-    apple: "/apple-touch-icon.svg"
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png"
   },
   keywords: [
     "image metadata remover",
@@ -30,35 +31,16 @@ export const metadata: Metadata = {
     "clean AI generated photos metadata",
     "remove provenance metadata"
   ],
-  openGraph: {
-    title: "Image Metadata Remover | Strip EXIF, C2PA & Hidden Photo Data",
-    description:
-      "Clean your images before you post. Remove hidden metadata from photos in seconds.",
-    url: "/",
-    siteName: "FileGhost",
-    type: "website",
-    images: [
-      {
-        url: "https://fileghost.app/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "FileGhost — Clean hidden photo metadata before you post"
-      }
-    ]
-  },
-  twitter: {
-    card: "summary_large_image",
-    images: [
-      {
-        url: "https://fileghost.app/og-image.png",
-        alt: "FileGhost — Remove GPS, camera info, and hidden data from your photos"
-      }
-    ]
-  },
   robots: {
     index: true,
     follow: true
   }
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#0B1120"
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
