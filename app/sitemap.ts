@@ -64,13 +64,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     {
       url: "https://fileghost.app/blog/remove-metadata-before-tiktok",
-      lastModified: new Date("2025-06-01"),
+      lastModified: new Date("2026-06-10"),
       changeFrequency: "monthly",
       priority: 0.7
     },
     {
       url: "https://fileghost.app/blog/what-is-c2pa-metadata",
-      lastModified: new Date("2025-06-01"),
+      lastModified: new Date("2026-06-10"),
       changeFrequency: "monthly",
       priority: 0.7
     },

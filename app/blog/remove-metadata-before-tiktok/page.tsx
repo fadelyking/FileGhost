@@ -31,8 +31,8 @@ const articleJsonLd = {
     name: "FileGhost",
     url: "https://fileghost.app"
   },
-  datePublished: "2025-06-01",
-  dateModified: "2025-06-01"
+  datePublished: "2026-06-10",
+  dateModified: "2026-06-10"
 };
 
 export default function TikTokMetadataGuidePage() {
