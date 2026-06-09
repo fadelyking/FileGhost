@@ -25,27 +25,28 @@ import {
   Zap
 } from "lucide-react";
 import { Footer } from "@/components/footer";
+import { JsonLd } from "@/components/json-ld";
 import { PricingCards } from "@/components/pricing-cards";
 import { SiteHeader } from "@/components/site-header";
 import { getCurrentUser } from "@/lib/auth";
 
 const landingDescription =
-  "Remove GPS, camera info, EXIF data, and AI provenance markers from photos before posting. Clean your first 5 images free.";
+  "FileGhost strips GPS location, camera info, EXIF data, XMP, IPTC, and AI provenance markers from your image files. Clean your photos before posting to TikTok, Instagram, or anywhere. First 5 cleans are free.";
 
 export const metadata: Metadata = {
-  title: "FileGhost — Remove Hidden Photo Metadata Before Posting",
+  title: "FileGhost - Remove Hidden Metadata from Photos Before You Post",
   description: landingDescription,
   alternates: {
-    canonical: "https://fileghost.app/"
+    canonical: "https://fileghost.app"
   },
   robots: {
     index: true,
     follow: true
   },
   openGraph: {
-    title: "FileGhost — Remove Hidden Photo Metadata Before Posting",
+    title: "FileGhost - Remove Hidden Metadata from Photos Before You Post",
     description: landingDescription,
-    url: "https://fileghost.app/",
+    url: "https://fileghost.app",
     type: "website",
     siteName: "FileGhost",
     images: [
@@ -53,18 +54,18 @@ export const metadata: Metadata = {
         url: "https://fileghost.app/og-image.png",
         width: 1200,
         height: 630,
-        alt: "FileGhost — Clean hidden photo metadata before you post"
+        alt: "FileGhost - Clean hidden photo metadata before you post"
       }
     ]
   },
   twitter: {
     card: "summary_large_image",
-    title: "FileGhost — Remove Hidden Photo Metadata Before Posting",
+    title: "FileGhost - Remove Hidden Metadata from Photos Before You Post",
     description: landingDescription,
     images: [
       {
         url: "https://fileghost.app/og-image.png",
-        alt: "FileGhost — Clean hidden photo metadata before you post"
+        alt: "FileGhost - Clean hidden photo metadata before you post"
       }
     ]
   }
@@ -92,25 +93,25 @@ const audiences = [
 
 const faqs = [
   [
-    "Will this stop TikTok or Instagram from labeling my content as AI?",
-    "No — and we'll be direct about that. Platforms use many signals beyond file metadata to classify content. FileGhost removes hidden metadata from your image files, which is one layer of that. We make no guarantees about how any platform will label, rank, or process your images."
+    "Will removing metadata stop TikTok or Instagram from labeling my content as AI?",
+    "No. Platforms use many signals beyond file metadata to classify content. FileGhost removes hidden metadata from your image files, which is one layer of privacy protection. We make no guarantees about how any platform will label, rank, or process your images."
   ],
   [
-    "What exactly gets removed from my files?",
-    "We remove EXIF data such as camera, device, and GPS details, plus XMP and IPTC metadata, software and editor tags, editing history, embedded notes, and C2PA/AI provenance markers where technically supported."
+    "What metadata gets removed from my photos?",
+    "FileGhost removes EXIF data including GPS coordinates, camera model, device identifiers, XMP metadata, IPTC metadata, software and editor tags, editing history, timestamps, embedded notes and comments, and C2PA AI provenance markers where technically supported."
   ],
   [
-    "Is my original file kept or replaced?",
-    "Your original file is never modified. We create a clean copy, which you download. Your original stays on your device."
+    "Is my original photo file modified?",
+    "No. FileGhost creates a clean copy of your file with metadata removed. Your original file is never modified and stays on your device."
   ],
-  ["What file types are supported?", "JPG, JPEG, PNG, and WEBP. File size limits apply to keep processing fast."],
+  ["What image file types does FileGhost support?", "FileGhost supports JPG, JPEG, PNG, and WEBP image files."],
   [
-    "Are my photos safe? Do you store them?",
-    "Files are processed privately on our server and deleted after processing. We don't store images, share them, or use them for training."
+    "Are my photos stored or shared by FileGhost?",
+    "No. Files are processed privately on our server and deleted immediately after cleaning. FileGhost does not store, share, or train on user images."
   ],
   [
-    "Do I need an account to try it?",
-    "No. Your first 5 cleans are free and require no account. You only need to sign up when you want to clean more."
+    "Do I need an account to remove metadata from my photos?",
+    "No. Your first 5 cleans are free with no account required. Create a free account to get 5 more cleans. Upgrade to a paid plan for unlimited cleaning."
   ]
 ];
 
@@ -120,31 +121,49 @@ const webApplicationJsonLd = {
   name: "FileGhost",
   url: "https://fileghost.app",
   description:
-    "FileGhost removes hidden metadata from image files including GPS location, EXIF data, camera info, XMP, IPTC, and AI provenance markers before users post to social platforms.",
+    "FileGhost removes hidden metadata from image files including GPS location, EXIF data, camera info, XMP, IPTC, and AI provenance markers (C2PA) before users post to social platforms.",
   applicationCategory: "UtilitiesApplication",
-  operatingSystem: "Web",
+  operatingSystem: "Web, iOS, Android",
+  browserRequirements: "Requires JavaScript",
   offers: [
     {
       "@type": "Offer",
       name: "Free",
       price: "0",
       priceCurrency: "USD",
-      description: "5 free image cleans, no account required"
+      description: "5 guest cleans plus 5 more after free signup. No credit card required."
     },
     {
       "@type": "Offer",
       name: "Monthly",
       price: "4.99",
       priceCurrency: "USD",
-      description: "Unlimited image cleaning, billed monthly"
+      priceSpecification: {
+        "@type": "UnitPriceSpecification",
+        price: "4.99",
+        priceCurrency: "USD",
+        unitCode: "MON"
+      },
+      description: "Unlimited image metadata cleaning, ZIP downloads, priority processing."
     },
     {
       "@type": "Offer",
       name: "Lifetime",
       price: "19",
       priceCurrency: "USD",
-      description: "One-time payment, lifetime unlimited access"
+      description: "One-time payment for lifetime unlimited access. No renewals."
     }
+  ],
+  featureList: [
+    "Remove GPS location from photos",
+    "Strip EXIF camera data",
+    "Remove XMP metadata",
+    "Remove IPTC metadata",
+    "Strip C2PA AI provenance markers",
+    "Remove software and editor tags",
+    "Batch processing with ZIP download",
+    "Files deleted after processing",
+    "No training on user images"
   ]
 };
 
@@ -161,20 +180,28 @@ const faqJsonLd = {
   }))
 };
 
+const breadcrumbJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    {
+      "@type": "ListItem",
+      position: 1,
+      name: "Home",
+      item: "https://fileghost.app"
+    }
+  ]
+};
+
 export default async function LandingPage() {
   const user = await getCurrentUser();
   if (user) redirect("/app");
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(webApplicationJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />
+      <JsonLd data={webApplicationJsonLd} />
+      <JsonLd data={faqJsonLd} />
+      <JsonLd data={breadcrumbJsonLd} />
       <SiteHeader />
       <main>
         <section className="section-pad" aria-labelledby="hero-heading">
@@ -223,7 +250,7 @@ export default async function LandingPage() {
                 <div>
                   <UploadCloud className="mx-auto text-mint" size={44} />
                   <p className="mt-5 text-lg font-semibold text-white">Drop your photo here</p>
-                  <p className="mt-2 text-sm text-white/55">or tap to choose — JPG, PNG, WEBP supported</p>
+                  <p className="mt-2 text-sm text-white/55">or tap to choose - JPG, PNG, WEBP supported</p>
                 </div>
               </Link>
               <p className="mt-3 text-xs text-white/50">Your file is processed privately and deleted immediately after cleaning.</p>
@@ -290,10 +317,22 @@ export default async function LandingPage() {
             <div className="relative mt-8 grid gap-4 md:grid-cols-4">
               <div className="absolute left-8 right-8 top-8 hidden h-px bg-line md:block" />
               {[
-                ["Upload your images", "JPG, PNG, or WEBP. Drop up to 5 free — no signup yet."],
-                ["We scan for hidden metadata", "Our server reads every embedded tag in your file."],
-                ["Metadata is stripped server-side", "We remove it during re-encoding. Not just flagged — gone."],
-                ["Download your clean files", "Get individual files or a clean ZIP. Original quality preserved."]
+                [
+                  "Upload your images",
+                  "Drag and drop or tap to select your JPG, PNG, or WEBP photos. Upload up to 5 images free - no account or signup required to get started."
+                ],
+                [
+                  "We scan for hidden metadata",
+                  "Our server reads every metadata field embedded in your image file, including EXIF data, GPS coordinates, XMP tags, IPTC fields, and AI provenance markers."
+                ],
+                [
+                  "Metadata is stripped server-side",
+                  "We remove hidden data during server-side re-encoding - not just flagged or hidden, but permanently stripped from the file."
+                ],
+                [
+                  "Download your clean files",
+                  "Download individual clean images or get everything as a ZIP. Your original file is never touched. Cleaned files are deleted from our server after processing."
+                ]
               ].map(([title, sub], index) => (
                 <div key={title} className="surface-card relative p-5">
                   <p className="text-sm font-bold text-mint">Step {index + 1}</p>
@@ -308,6 +347,10 @@ export default async function LandingPage() {
         <section className="section-pad" aria-labelledby="audience-heading">
           <div className="section-wrap">
             <h2 id="audience-heading" className="text-[26px] font-bold tracking-tight md:text-[32px]">Built for anyone who posts photos online.</h2>
+            <p className="mt-3 max-w-3xl text-[15px] leading-7 text-[color:var(--color-text-muted)]">
+              Whether you are a creator, photographer, designer, or just someone who cares about what data travels
+              with their images, FileGhost gives you clean files ready to post anywhere.
+            </p>
             <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {audiences.map(([Icon, title, sub]) => {
                 const AudienceIcon = Icon as typeof Smartphone;
@@ -354,6 +397,12 @@ export default async function LandingPage() {
                 );
               })}
             </div>
+            <p className="mx-auto mt-6 max-w-[700px] text-center text-[15px] leading-7 text-[color:var(--color-text-muted)]">
+              FileGhost was built on one principle: your image files should only contain what you choose to share.
+              Every photo taken on a modern smartphone carries invisible data - your exact GPS location, the device
+              you used, the apps that edited it, and in AI-generated images, provenance markers that identify how the
+              image was created. FileGhost removes all of it, server-side, before you post.
+            </p>
           </div>
         </section>
 
@@ -374,11 +423,44 @@ export default async function LandingPage() {
           </div>
         </section>
 
+        <section className="section-pad" aria-labelledby="blog-heading">
+          <div className="section-wrap">
+            <h2 id="blog-heading" className="text-[26px] font-bold tracking-tight md:text-[32px]">From the blog</h2>
+            <div className="mt-8 grid gap-4 md:grid-cols-2">
+              {[
+                {
+                  href: "/blog/remove-metadata-before-tiktok",
+                  title: "How to Remove Metadata from Photos Before Posting to TikTok",
+                  excerpt: "Every photo you take on your phone contains far more than just the image."
+                },
+                {
+                  href: "/blog/what-is-c2pa-metadata",
+                  title: "What is C2PA Metadata and How to Remove It",
+                  excerpt: "C2PA metadata is a form of provenance data that can travel inside AI-generated or edited images."
+                }
+              ].map((post) => (
+                <article key={post.href} className="surface-card p-5">
+                  <p className="text-xs font-bold uppercase tracking-[0.08em] text-mint">Guide</p>
+                  <h3 className="mt-3 text-lg font-semibold text-white">
+                    <Link href={post.href} className="hover:text-mint">
+                      {post.title}
+                    </Link>
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-[color:var(--color-text-muted)]">{post.excerpt}</p>
+                  <Link href={post.href} className="mt-4 inline-flex text-sm font-semibold text-mint hover:text-white">
+                    Read guide
+                  </Link>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="border-t-4 border-mint bg-[color:var(--color-surface-alt)] px-4 py-14 text-center" aria-labelledby="final-cta-heading">
           <div className="mx-auto max-w-3xl">
             <h2 id="final-cta-heading" className="text-[26px] font-bold tracking-tight md:text-[32px]">Clean your images before you post.</h2>
             <p className="mx-auto mt-3 max-w-2xl text-white/60">
-              Remove GPS, device info, and hidden file data in seconds. First 5 cleans are free — no account needed.
+              Remove GPS, device info, and hidden file data in seconds. First 5 cleans are free - no account needed.
             </p>
             <Link
               href="/dashboard"
@@ -394,7 +476,7 @@ export default async function LandingPage() {
       </main>
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-ink/95 p-3 backdrop-blur md:hidden">
         <Link href="/dashboard" className="flex min-h-12 items-center justify-center rounded-lg bg-mint px-5 font-bold text-ink">
-          Clean Your First Photo Free →
+          Clean Your First Photo Free
         </Link>
       </div>
       <Footer />

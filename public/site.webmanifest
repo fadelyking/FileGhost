@@ -1,0 +1,21 @@
+{
+  "name": "FileGhost",
+  "short_name": "FileGhost",
+  "description": "Remove hidden metadata from photos",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B1120",
+  "theme_color": "#2DD4BF",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    }
+  ]
+}

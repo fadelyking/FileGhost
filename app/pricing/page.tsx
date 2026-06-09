@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Footer } from "@/components/footer";
+import { JsonLd } from "@/components/json-ld";
 import { PricingCards } from "@/components/pricing-cards";
 import { SiteHeader } from "@/components/site-header";
 import { getCurrentUser, getProfile } from "@/lib/auth";
 import { hasPaidAccess } from "@/lib/plans";
 
 const pricingDescription =
-  "Start with 5 free image cleans, then create a free account to unlock 5 more. Upgrade to Monthly at $4.99 or get Lifetime access for $19.";
+  "Start free with 5 image metadata cleans. Upgrade to Monthly at $4.99 or get Lifetime access for $19. Remove GPS, EXIF, and hidden photo data with no subscription required.";
 
 export const metadata: Metadata = {
-  title: "Pricing — FileGhost | Free, Monthly, and Lifetime Plans",
+  title: "Pricing - Free, Monthly & Lifetime Plans",
   description: pricingDescription,
   alternates: {
     canonical: "https://fileghost.app/pricing"
@@ -20,7 +21,7 @@ export const metadata: Metadata = {
     follow: true
   },
   openGraph: {
-    title: "Pricing — FileGhost | Free, Monthly, and Lifetime Plans",
+    title: "FileGhost Pricing - Start Free, Upgrade Anytime",
     description: pricingDescription,
     url: "https://fileghost.app/pricing",
     type: "website",
@@ -30,18 +31,18 @@ export const metadata: Metadata = {
         url: "https://fileghost.app/og-image.png",
         width: 1200,
         height: 630,
-        alt: "FileGhost — Clean hidden photo metadata before you post"
+        alt: "FileGhost - Clean hidden photo metadata before you post"
       }
     ]
   },
   twitter: {
     card: "summary_large_image",
-    title: "Pricing — FileGhost | Free, Monthly, and Lifetime Plans",
+    title: "FileGhost Pricing - Start Free, Upgrade Anytime",
     description: pricingDescription,
     images: [
       {
         url: "https://fileghost.app/og-image.png",
-        alt: "FileGhost — Clean hidden photo metadata before you post"
+        alt: "FileGhost - Clean hidden photo metadata before you post"
       }
     ]
   }
@@ -85,6 +86,25 @@ const pricingJsonLd = {
   ]
 };
 
+const breadcrumbJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    {
+      "@type": "ListItem",
+      position: 1,
+      name: "Home",
+      item: "https://fileghost.app"
+    },
+    {
+      "@type": "ListItem",
+      position: 2,
+      name: "Pricing",
+      item: "https://fileghost.app/pricing"
+    }
+  ]
+};
+
 export default async function PricingPage() {
   const user = await getCurrentUser();
   const profile = user ? await getProfile(user.id) : null;
@@ -92,10 +112,8 @@ export default async function PricingPage() {
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(pricingJsonLd) }}
-      />
+      <JsonLd data={pricingJsonLd} />
+      <JsonLd data={breadcrumbJsonLd} />
       <SiteHeader />
       <main className="px-4 py-12">
         <section className="mx-auto max-w-6xl" aria-labelledby="pricing-page-heading">

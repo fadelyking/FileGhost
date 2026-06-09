@@ -198,17 +198,20 @@ test("Stripe checkout, portal, and webhook routes contain the required payment h
 });
 
 test("SEO crawl files expose only public pages", () => {
-  const robots = read("public/robots.txt");
+  const robots = read("app/robots.ts");
   const sitemap = read("app/sitemap.ts");
-  has(robots, "Disallow: /app");
-  has(robots, "Disallow: /account");
-  has(robots, "Disallow: /login");
-  has(robots, "Disallow: /signup");
-  has(robots, "Disallow: /api/");
-  has(robots, "Sitemap: https://fileghost.app/sitemap.xml");
+  has(robots, '"/app"');
+  has(robots, '"/account"');
+  has(robots, '"/login"');
+  has(robots, '"/signup"');
+  has(robots, '"/api/"');
+  has(robots, 'sitemap: "https://fileghost.app/sitemap.xml"');
   has(sitemap, "https://fileghost.app");
-  has(sitemap, "`${base}/pricing`");
-  has(sitemap, "`${base}/privacy`");
+  has(sitemap, "https://fileghost.app/pricing");
+  has(sitemap, "https://fileghost.app/blog");
+  has(sitemap, "https://fileghost.app/blog/remove-metadata-before-tiktok");
+  has(sitemap, "https://fileghost.app/blog/what-is-c2pa-metadata");
+  has(sitemap, "https://fileghost.app/privacy");
   assert.doesNotMatch(sitemap, /\/app|\/account|\/login|\/signup|\/api/, "Private routes must not be listed in sitemap");
 });
 

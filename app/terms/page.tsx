@@ -3,7 +3,7 @@ import { Footer } from "@/components/footer";
 import { SiteHeader } from "@/components/site-header";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — FileGhost",
+  title: "Terms of Service - FileGhost",
   description: "Read the FileGhost terms of service for image metadata cleaning, paid access, and responsible use.",
   alternates: {
     canonical: "https://fileghost.app/terms"
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     follow: true
   },
   openGraph: {
-    title: "Terms of Service — FileGhost",
+    title: "Terms of Service - FileGhost",
     description: "Read the FileGhost terms of service for image metadata cleaning, paid access, and responsible use.",
     url: "https://fileghost.app/terms",
     type: "website",
@@ -23,18 +23,18 @@ export const metadata: Metadata = {
         url: "https://fileghost.app/og-image.png",
         width: 1200,
         height: 630,
-        alt: "FileGhost — Clean hidden photo metadata before you post"
+        alt: "FileGhost - Clean hidden photo metadata before you post"
       }
     ]
   },
   twitter: {
     card: "summary_large_image",
-    title: "Terms of Service — FileGhost",
+    title: "Terms of Service - FileGhost",
     description: "Read the FileGhost terms of service for image metadata cleaning, paid access, and responsible use.",
     images: [
       {
         url: "https://fileghost.app/og-image.png",
-        alt: "FileGhost — Clean hidden photo metadata before you post"
+        alt: "FileGhost - Clean hidden photo metadata before you post"
       }
     ]
   }
