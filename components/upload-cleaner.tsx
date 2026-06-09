@@ -242,7 +242,7 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
             href="/pricing"
             className="inline-flex min-h-9 items-center justify-center rounded-md border border-mint px-4 text-sm font-semibold text-mint transition hover:bg-mint hover:text-ink"
           >
-            Upgrade â†’
+            Upgrade
           </Link>
         </div>
       ) : null}
@@ -274,7 +274,7 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
           </div>
           {checkoutError ? <p className="mt-3 text-sm text-coral">{checkoutError}</p> : null}
           <p className="mt-4 text-[11px] text-[color:var(--color-text-muted)]">
-            Secure payment via Stripe. No hidden fees. <Link href="/pricing" className="text-mint hover:text-white">View all options ?</Link>
+            Secure payment via Stripe. No hidden fees. <Link href="/pricing" className="text-mint hover:text-white">View all options</Link>
           </p>
           <p className="mt-2 text-xs text-[color:var(--color-text-muted)]">
             {isGuest ? "Already have an account? Sign in to use your extra free cleans." : "Your cleaned files above are still available to download."}
@@ -308,7 +308,7 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
         <UploadCloud className="mx-auto text-mint" size={46} />
         <h2 className="mt-4 text-2xl font-bold tracking-tight">Upload images. Strip hidden data.</h2>
         <p className="mx-auto mt-2 max-w-md text-[13px] leading-6 text-[color:var(--color-text-muted)]">
-          JPG, PNG, WEBP supported â€” processed privately, deleted after cleaning.
+          JPG, PNG, WEBP supported - processed privately, deleted after cleaning.
         </p>
         <div className="mt-5 flex justify-center">
           <button
@@ -578,7 +578,7 @@ function UsageCard({ label, value, remaining, href, valueClassName }: { label: s
       <p className={`mt-1 text-[22px] font-bold leading-[1.2] tracking-tight ${valueClassName || (remaining == null ? "text-[color:var(--color-text)]" : cardTone.text)}`}>{value}</p>
       {href ? (
         <Link href={href} className="mt-2 inline-flex text-xs font-semibold text-mint hover:text-white">
-          View pricing â†’
+          View pricing
         </Link>
       ) : null}
     </div>
@@ -603,7 +603,7 @@ function formatBytes(bytes: number) {
 
 function formatSizeChange(sizeBefore: number, sizeAfter: number) {
   if (sizeAfter >= sizeBefore) return `${formatBytes(sizeAfter)} (size unchanged)`;
-  return `${formatBytes(sizeBefore)} â†’ ${formatBytes(sizeAfter)}`;
+  return `${formatBytes(sizeBefore)} -> ${formatBytes(sizeAfter)}`;
 }
 
 function planName(plan: string) {
