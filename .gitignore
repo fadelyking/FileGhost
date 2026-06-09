@@ -5,7 +5,8 @@ node_modules
 .npm-cache*
 dist
 *.log
-*.tsbuildinfo
 cleaned-output
+
 .git-broken/
 FileGhostRepo/
+*.tsbuildinfo
