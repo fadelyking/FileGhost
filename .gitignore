@@ -7,3 +7,5 @@ dist
 *.log
 *.tsbuildinfo
 cleaned-output
+.git-broken/
+FileGhostRepo/
