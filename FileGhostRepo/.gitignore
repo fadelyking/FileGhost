@@ -1,0 +1,9 @@
+.next
+node_modules
+.env
+.env.local
+.npm-cache*
+dist
+*.log
+cleaned-output
+tsconfig.tsbuildinfo
