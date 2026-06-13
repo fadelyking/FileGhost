@@ -16,9 +16,24 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const maxUploadMb = Number(process.env.MAX_UPLOAD_MB || 15);
+const maxBatchUploadMb = Number(process.env.MAX_BATCH_UPLOAD_MB || 60);
 const maxBatchSize = 20;
 
 export async function POST(request: Request) {
+  try {
+    return await handleCleanRequest(request);
+  } catch (error) {
+    console.error("Image cleaning request failed", { error });
+    return NextResponse.json(
+      {
+        error: "We couldn't process this upload. Try again or upload fewer images at once."
+      },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleCleanRequest(request: Request) {
   const form = await request.formData();
   const files = form.getAll("files");
 
@@ -51,6 +66,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No valid images were found." }, { status: 400 });
   }
 
+  const totalUploadBytes = parsedFiles.reduce((total, file) => total + file.size, 0);
+  if (totalUploadBytes > maxBatchUploadMb * 1024 * 1024) {
+    return NextResponse.json(
+      { error: `Upload ${maxBatchUploadMb}MB or less at a time. Try fewer images in this batch.` },
+      { status: 413 }
+    );
+  }
+
   const user = await getCurrentUser();
   const profile = user ? await getProfile(user.id) : null;
 
@@ -67,8 +90,7 @@ export async function POST(request: Request) {
   const supabase = createAdminClient();
   const expiresAt = new Date(Date.now() + Number(process.env.DELETE_AFTER_HOURS || 24) * 60 * 60 * 1000);
 
-  const settled = await Promise.allSettled(
-    parsedFiles.map(async (file) => {
+  const settled = await settleWithConcurrency(parsedFiles, 2, async (file) => {
       try {
         return await processImage(file, user?.id || null, expiresAt);
       } catch (error) {
@@ -80,8 +102,7 @@ export async function POST(request: Request) {
         });
         throw error;
       }
-    })
-  );
+    });
 
   const results = settled
     .filter((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof processImage>>> => result.status === "fulfilled")
@@ -107,11 +128,20 @@ export async function POST(request: Request) {
     );
   }
 
+  let updatedProfile = profile;
   if (user && !getPlanAccess(profile).paid) {
-    await incrementUsage(user.id, results.length);
+    try {
+      await incrementUsage(user.id, results.length);
+      updatedProfile = await getProfile(user.id);
+    } catch (error) {
+      console.error("Usage tracking failed after image cleaning", {
+        userId: user.id,
+        imageCount: results.length,
+        error
+      });
+    }
   }
 
-  const updatedProfile = user ? await getProfile(user.id) : null;
   const usage = user
     ? getPlanAccess(updatedProfile)
     : {
@@ -182,6 +212,37 @@ export async function POST(request: Request) {
       downloadUrl: `/api/images/download/${id}`
     };
   }
+}
+
+async function settleWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<R>
+): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = new Array(items.length);
+  let nextIndex = 0;
+
+  async function runWorker() {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+
+      try {
+        results[currentIndex] = {
+          status: "fulfilled",
+          value: await worker(items[currentIndex])
+        };
+      } catch (reason) {
+        results[currentIndex] = {
+          status: "rejected",
+          reason
+        };
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, runWorker));
+  return results;
 }
 
 function readableError(error: unknown) {

@@ -43,6 +43,7 @@ type CheckoutPlan = "monthly" | "lifetime";
 
 const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
 const maxFileMb = 15;
+const maxBatchUploadMb = 60;
 const maxBatchSize = 20;
 const processingMessages = [
   "Reading file metadata...",
@@ -120,11 +121,14 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
     const valid = incoming.filter((file) => allowedTypes.includes(file.type) && file.size <= maxFileMb * 1024 * 1024);
     const next = [...files, ...valid].slice(0, maxBatchSize);
     setFiles(next);
+    const totalMb = totalSizeMb(next);
 
     if (incoming.length !== valid.length) {
       setError(`Only JPG, PNG, and WEBP images up to ${maxFileMb}MB are supported.`);
     } else if (files.length + valid.length > maxBatchSize) {
       setError(`You can clean up to ${maxBatchSize} images per batch.`);
+    } else if (totalMb > maxBatchUploadMb) {
+      setError(`Upload ${maxBatchUploadMb}MB or less at a time. Try fewer images in this batch.`);
     }
   }
 
@@ -143,6 +147,11 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
       return;
     }
 
+    if (totalSizeMb(filesToProcess) > maxBatchUploadMb) {
+      setError(`Upload ${maxBatchUploadMb}MB or less at a time. Try fewer images in this batch.`);
+      return;
+    }
+
     setIsProcessing(true);
     setProgress(processingMessages[0]);
     setError("");
@@ -155,11 +164,11 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
         method: "POST",
         body: form
       });
-      const payload = await response.json();
+      const payload = await readJsonResponse(response);
 
       if (!response.ok) {
-        setFailedFiles(payload.failed || []);
-        setError(payload.error || "We couldn't process these images. Try again or upload fewer images at once.");
+        setFailedFiles(payload?.failed || []);
+        setError(payload?.error || "We couldn't process these images. Try again or upload fewer images at once.");
         return;
       }
 
@@ -664,6 +673,21 @@ function formatBytes(bytes: number) {
 function formatSizeChange(sizeBefore: number, sizeAfter: number) {
   if (sizeAfter >= sizeBefore) return `${formatBytes(sizeAfter)} (size unchanged)`;
   return `${formatBytes(sizeBefore)} -> ${formatBytes(sizeAfter)}`;
+}
+
+function totalSizeMb(files: File[]) {
+  return files.reduce((total, file) => total + file.size, 0) / 1024 / 1024;
+}
+
+async function readJsonResponse(response: Response) {
+  const text = await response.text();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 function planName(plan: string) {
