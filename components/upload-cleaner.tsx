@@ -492,10 +492,10 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
         ) : null}
         {files.length ? <BatchIndicator status={batchStatus} /> : null}
         {files.length ? (
-          <div className="mt-5 grid gap-2 sm:grid-cols-2">
+          <div className="mt-5 grid w-full max-w-xl min-w-0 gap-2 sm:grid-cols-2">
             {files.map((file) => (
-              <div key={`${file.name}-${file.size}-${file.lastModified}`} className="flex items-center justify-between gap-2 rounded-md border border-line bg-[color:var(--color-surface-alt)] px-3 py-2.5 text-left text-sm text-white/76">
-                <span className="truncate">{file.name}</span>
+              <div key={`${file.name}-${file.size}-${file.lastModified}`} className="flex min-w-0 items-center justify-between gap-2 rounded-md border border-line bg-[color:var(--color-surface-alt)] px-3 py-2.5 text-left text-sm text-white/76">
+                <span className="min-w-0 flex-1 truncate">{file.name}</span>
                 <button
                   type="button"
                   className="grid h-8 w-8 shrink-0 place-items-center rounded-md hover:bg-white/10"

@@ -30,6 +30,11 @@ export function IosInstallModal({ onClose }: Props) {
           Add FileGhost to your Home Screen
         </h3>
 
+        <p className="mb-4 rounded-lg border border-mint/30 bg-mint/10 p-3 text-sm leading-6 text-[color:var(--color-text-muted)]">
+          If you opened FileGhost from WhatsApp, Instagram, Chrome, or another app, first open it in{" "}
+          <strong className="text-[color:var(--color-text)]">Safari</strong>. iPhone only shows Add to Home Screen in Safari.
+        </p>
+
         <InstallStep number="1">
           Tap the <strong className="text-[color:var(--color-text)]">Share</strong> button{" "}
           <Share className="inline-block align-[-3px] text-mint" size={18} /> at the bottom of Safari.
