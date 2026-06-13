@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { Download, FileArchive, Loader2, Lock, UploadCloud, X, Zap } from "lucide-react";
 import { MetadataPreview } from "@/components/metadata-preview";
+import { MAX_BATCH_FILES, MAX_BATCH_SIZE_BYTES, MAX_BATCH_SIZE_MB, MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB } from "@/lib/constants";
 import type { MetadataSummary } from "@/lib/metadata";
 import { FREE_IMAGE_LIMIT, GUEST_FREE_IMAGE_LIMIT } from "@/lib/plans";
 
@@ -34,6 +35,31 @@ type FailedImage = {
   error: string;
 };
 
+type CleanResponsePayload = {
+  error?: string;
+  message?: string;
+  results?: CleanedImage[];
+  failed?: FailedImage[];
+  usage?: UsageState;
+};
+
+type RejectionMessage = {
+  id: string;
+  message: string;
+};
+
+type BatchStatus = {
+  totalSizeBytes: number;
+  totalSizeMB: string;
+  fileCount: number;
+  percentage: number;
+  sizeExceeded: boolean;
+  countExceeded: boolean;
+  sizeIsBinding: boolean;
+  warningMessage: string;
+  tone: "default" | "warning" | "danger";
+};
+
 type Props = {
   initialUsage: UsageState;
   isLoggedIn: boolean;
@@ -42,9 +68,7 @@ type Props = {
 type CheckoutPlan = "monthly" | "lifetime";
 
 const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-const maxFileMb = 15;
-const maxBatchUploadMb = 60;
-const maxBatchSize = 20;
+const maxRequestBatchSize = 3;
 const processingMessages = [
   "Reading file metadata...",
   "Scanning for GPS data...",
@@ -68,6 +92,7 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [results, setResults] = useState<CleanedImage[]>([]);
   const [failedFiles, setFailedFiles] = useState<FailedImage[]>([]);
+  const [rejections, setRejections] = useState<RejectionMessage[]>([]);
   const [usage, setUsage] = useState(initialUsage);
 
   useEffect(() => {
@@ -102,6 +127,8 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
   const remaining = usage.remaining ?? activeFreeLimit;
   const isFreePlan = !usage.paid;
   const hasNoFreeCredits = isFreePlan && remaining === 0;
+  const batchStatus = getBatchStatus(files);
+  const batchOverLimit = batchStatus.sizeExceeded || batchStatus.countExceeded;
   const buttonLabel = useMemo(() => {
     if (isProcessing) {
       if (selectedCount > 1) return `Processing ${selectedCount} images... ${progress || processingMessages[0]}`;
@@ -111,6 +138,14 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
     return `Clean ${selectedCount} image${selectedCount === 1 ? "" : "s"}`;
   }, [isProcessing, progress, selectedCount]);
 
+  function showRejection(message: string) {
+    const id = crypto.randomUUID();
+    setRejections((current) => [...current, { id, message }]);
+    window.setTimeout(() => {
+      setRejections((current) => current.filter((item) => item.id !== id));
+    }, 5000);
+  }
+
   function addFiles(fileList: FileList | null) {
     if (!fileList) return;
     setError("");
@@ -118,18 +153,24 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
     setFailedFiles([]);
 
     const incoming = Array.from(fileList);
-    const valid = incoming.filter((file) => allowedTypes.includes(file.type) && file.size <= maxFileMb * 1024 * 1024);
-    const next = [...files, ...valid].slice(0, maxBatchSize);
-    setFiles(next);
-    const totalMb = totalSizeMb(next);
+    const valid: File[] = [];
 
-    if (incoming.length !== valid.length) {
-      setError(`Only JPG, PNG, and WEBP images up to ${maxFileMb}MB are supported.`);
-    } else if (files.length + valid.length > maxBatchSize) {
-      setError(`You can clean up to ${maxBatchSize} images per batch.`);
-    } else if (totalMb > maxBatchUploadMb) {
-      setError(`Upload ${maxBatchUploadMb}MB or less at a time. Try fewer images in this batch.`);
-    }
+    incoming.forEach((file) => {
+      if (!allowedTypes.includes(file.type)) {
+        showRejection(`${file.name} is not supported. Use JPG, PNG, or WEBP.`);
+        return;
+      }
+
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        showRejection(`${file.name} is ${formatSizeMb(file.size)}MB - files over ${MAX_FILE_SIZE_MB}MB aren't supported. Try compressing it first.`);
+        return;
+      }
+
+      valid.push(file);
+    });
+
+    const next = [...files, ...valid];
+    setFiles(next);
   }
 
   async function processFiles() {
@@ -147,8 +188,9 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
       return;
     }
 
-    if (totalSizeMb(filesToProcess) > maxBatchUploadMb) {
-      setError(`Upload ${maxBatchUploadMb}MB or less at a time. Try fewer images in this batch.`);
+    const currentBatchStatus = getBatchStatus(filesToProcess);
+    if (currentBatchStatus.sizeExceeded || currentBatchStatus.countExceeded) {
+      setError(currentBatchStatus.warningMessage || "Remove some images to continue.");
       return;
     }
 
@@ -156,38 +198,57 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
     setProgress(processingMessages[0]);
     setError("");
     setFailedFiles([]);
-    const form = new FormData();
-    filesToProcess.forEach((file) => form.append("files", file));
 
     try {
-      const response = await fetch("/api/images/clean", {
-        method: "POST",
-        body: form
-      });
-      const payload = await readJsonResponse(response);
+      const batches = chunkFiles(filesToProcess, maxRequestBatchSize);
+      const cleanedImages: CleanedImage[] = [];
+      const failedImages: FailedImage[] = [];
+      let latestUsage: UsageState | null = null;
+      let firstError = "";
 
-      if (!response.ok) {
-        setFailedFiles(payload?.failed || []);
-        setError(payload?.error || "We couldn't process these images. Try again or upload fewer images at once.");
-        return;
+      for (let index = 0; index < batches.length; index += 1) {
+        const batch = batches[index];
+        if (batches.length > 1) {
+          setProgress(`Processing ${Math.min((index + 1) * maxRequestBatchSize, filesToProcess.length)} of ${filesToProcess.length} images...`);
+        }
+
+        const { response, payload } = await submitCleanBatch(batch);
+
+        if (!response.ok) {
+          failedImages.push(...failureListForBatch(batch, payload));
+          firstError = firstError || payload?.message || payload?.error || "We couldn't process these images. Try again or upload fewer images at once.";
+          continue;
+        }
+
+        cleanedImages.push(...(payload?.results || []));
+        failedImages.push(...(payload?.failed || []));
+        if (payload?.usage) latestUsage = payload.usage;
       }
 
-      setResults((current) => (appendResults ? [...current, ...payload.results] : payload.results));
-      setFailedFiles(payload.failed || []);
+      setResults((current) => (appendResults ? [...current, ...cleanedImages] : cleanedImages));
+      setFailedFiles(failedImages);
       setProgress("");
 
-      if (isLoggedIn) {
-        setUsage(payload.usage);
+      if (cleanedImages.length) {
+        if (isLoggedIn && latestUsage) {
+          setUsage(latestUsage);
+        } else if (!isLoggedIn) {
+          const nextUsed = usage.freeUsed + cleanedImages.length;
+          localStorage.setItem("FileGhost_guest_used", String(nextUsed));
+          setUsage({
+            freeUsed: nextUsed,
+            freeLimit: GUEST_FREE_IMAGE_LIMIT,
+            plan: "guest",
+            remaining: Math.max(GUEST_FREE_IMAGE_LIMIT - nextUsed, 0),
+            paid: false
+          });
+        }
+      }
+
+      if (failedImages.length) {
+        setError(cleanedImages.length ? "Some images could not be processed. Try those again below." : firstError || "We couldn't process these images. Try again or upload fewer images at once.");
       } else {
-        const nextUsed = usage.freeUsed + payload.results.length;
-        localStorage.setItem("FileGhost_guest_used", String(nextUsed));
-        setUsage({
-          freeUsed: nextUsed,
-          freeLimit: GUEST_FREE_IMAGE_LIMIT,
-          plan: "guest",
-          remaining: Math.max(GUEST_FREE_IMAGE_LIMIT - nextUsed, 0),
-          paid: false
-        });
+        setError("");
       }
     } catch {
       setError("We couldn't process these images. This is usually temporary - try again or upload fewer images at once.");
@@ -345,14 +406,24 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
         <div className="mt-5 flex justify-center">
           <button
             type="button"
-            disabled={isProcessing}
+            disabled={isProcessing || batchOverLimit}
             onClick={() => (files.length ? processFiles() : inputRef.current?.click())}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-mint px-8 py-3.5 text-base font-bold text-ink focus-ring hover:bg-[color:var(--color-accent-hover)] disabled:cursor-not-allowed disabled:opacity-85 disabled:text-[15px] disabled:font-semibold"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-mint px-8 py-3.5 text-base font-bold text-ink focus-ring hover:bg-[color:var(--color-accent-hover)] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 disabled:text-[15px] disabled:font-semibold"
           >
             {isProcessing ? <Loader2 className="animate-spin text-ink" size={18} /> : null}
             {buttonLabel}
           </button>
         </div>
+        {rejections.length ? (
+          <div className="mt-4 w-full max-w-xl space-y-2" aria-live="polite">
+            {rejections.map((rejection) => (
+              <p key={rejection.id} className="rounded-md border border-[#EF4444]/30 bg-[#EF4444]/10 px-3 py-2 text-left text-[13px] leading-5 text-[#EF4444]">
+                {rejection.message}
+              </p>
+            ))}
+          </div>
+        ) : null}
+        {files.length ? <BatchIndicator status={batchStatus} /> : null}
         {files.length ? (
           <div className="mt-5 grid gap-2 sm:grid-cols-2">
             {files.map((file) => (
@@ -371,7 +442,7 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
           </div>
         ) : null}
         {error ? <p className="mt-4 text-sm text-coral">{error}</p> : null}
-        {error && files.length > 1 ? (
+        {error && files.length > 1 && !batchOverLimit ? (
           <button
             type="button"
             onClick={() => void processSelectedFiles(files)}
@@ -459,9 +530,9 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-ink/92 p-3 backdrop-blur md:hidden">
           <button
             type="button"
-            disabled={isProcessing}
+            disabled={isProcessing || batchOverLimit}
             onClick={processFiles}
-            className="flex min-h-12 w-full items-center justify-center rounded-lg bg-mint px-5 font-semibold text-ink disabled:opacity-70"
+            className="flex min-h-12 w-full items-center justify-center rounded-lg bg-mint px-5 font-semibold text-ink disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
           >
             {buttonLabel}
           </button>
@@ -469,6 +540,46 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
       ) : null}
 
       <UpgradeAuthModal open={authModalOpen} plan={checkoutPlan} onClose={() => setAuthModalOpen(false)} />
+    </div>
+  );
+}
+
+function BatchIndicator({ status }: { status: BatchStatus }) {
+  const fillClassName =
+    status.tone === "danger"
+      ? "bg-[#EF4444]"
+      : status.tone === "warning"
+        ? "bg-[#F59E0B]"
+        : "bg-mint";
+  const sizeClassName =
+    status.tone === "danger"
+      ? "text-[#EF4444]"
+      : status.tone === "warning"
+        ? "text-[#F59E0B]"
+        : "text-[color:var(--color-text)]";
+  const warningClassName = status.tone === "danger" ? "text-[#EF4444] font-medium" : "text-[#F59E0B]";
+
+  return (
+    <div className="my-3 w-full max-w-xl rounded-[10px] border border-line bg-[color:var(--color-surface)] px-4 py-3 text-left">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[13px] leading-5">
+        <span className={`font-semibold ${sizeClassName}`}>
+          {status.totalSizeMB} MB of {MAX_BATCH_SIZE_MB} MB
+        </span>
+        <span className="text-[color:var(--color-text-muted)]">
+          {status.fileCount} of {MAX_BATCH_FILES} images
+        </span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-[3px] bg-[color:var(--color-surface-alt)]">
+        <div
+          className={`h-full rounded-[3px] transition-[width,background-color] duration-300 ${fillClassName}`}
+          style={{ width: `${status.percentage}%` }}
+        />
+      </div>
+      {status.warningMessage ? (
+        <p className={`mt-2 text-xs leading-5 ${warningClassName}`}>
+          {status.warningMessage}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -675,10 +786,6 @@ function formatSizeChange(sizeBefore: number, sizeAfter: number) {
   return `${formatBytes(sizeBefore)} -> ${formatBytes(sizeAfter)}`;
 }
 
-function totalSizeMb(files: File[]) {
-  return files.reduce((total, file) => total + file.size, 0) / 1024 / 1024;
-}
-
 async function readJsonResponse(response: Response) {
   const text = await response.text();
   if (!text) return null;
@@ -688,6 +795,104 @@ async function readJsonResponse(response: Response) {
   } catch {
     return null;
   }
+}
+
+async function submitCleanBatch(files: File[]) {
+  const form = new FormData();
+  files.forEach((file) => form.append("files", file));
+
+  const response = await fetch("/api/images/clean", {
+    method: "POST",
+    body: form
+  });
+  const payload = (await readJsonResponse(response)) as CleanResponsePayload | null;
+
+  return { response, payload };
+}
+
+function failureListForBatch(files: File[], payload: CleanResponsePayload | null) {
+  if (payload?.failed?.length) return payload.failed;
+
+  return files.map((file) => ({
+    filename: file.name,
+    error: payload?.message || payload?.error || "Could not process this image."
+  }));
+}
+
+function chunkFiles(files: File[], size: number) {
+  const chunks: File[][] = [];
+  for (let index = 0; index < files.length; index += size) {
+    chunks.push(files.slice(index, index + size));
+  }
+  return chunks;
+}
+
+function getBatchStatus(files: File[]): BatchStatus {
+  const totalSizeBytes = files.reduce((total, file) => total + file.size, 0);
+  const sizePercentage = Math.min((totalSizeBytes / MAX_BATCH_SIZE_BYTES) * 100, 100);
+  const countPercentage = Math.min((files.length / MAX_BATCH_FILES) * 100, 100);
+  const percentage = Math.max(sizePercentage, countPercentage);
+  const sizeExceeded = totalSizeBytes > MAX_BATCH_SIZE_BYTES;
+  const countExceeded = files.length > MAX_BATCH_FILES;
+  const sizeIsBinding = sizePercentage >= countPercentage;
+  const tone = sizeExceeded || countExceeded ? "danger" : percentage >= 70 ? "warning" : "default";
+
+  return {
+    totalSizeBytes,
+    totalSizeMB: formatSizeMb(totalSizeBytes),
+    fileCount: files.length,
+    percentage,
+    sizeExceeded,
+    countExceeded,
+    sizeIsBinding,
+    warningMessage: getBatchWarning({
+      fileCount: files.length,
+      percentage,
+      sizeExceeded,
+      countExceeded,
+      sizeIsBinding,
+      totalSizeMB: formatSizeMb(totalSizeBytes)
+    }),
+    tone
+  };
+}
+
+function getBatchWarning({
+  fileCount,
+  percentage,
+  sizeExceeded,
+  countExceeded,
+  sizeIsBinding,
+  totalSizeMB
+}: {
+  fileCount: number;
+  percentage: number;
+  sizeExceeded: boolean;
+  countExceeded: boolean;
+  sizeIsBinding: boolean;
+  totalSizeMB: string;
+}) {
+  if (sizeExceeded) {
+    return `This batch is ${totalSizeMB}MB, over the ${MAX_BATCH_SIZE_MB}MB limit. Remove some images to continue.`;
+  }
+
+  if (countExceeded) {
+    return `You've selected ${fileCount} images, over the ${MAX_BATCH_FILES}-image limit. Remove ${fileCount - MAX_BATCH_FILES} to continue.`;
+  }
+
+  if (percentage >= 90) {
+    return "Almost at the limit - consider cleaning this batch before adding more.";
+  }
+
+  if (percentage >= 70) {
+    return sizeIsBinding ? `Getting close to the ${MAX_BATCH_SIZE_MB}MB batch limit.` : `Getting close to the ${MAX_BATCH_FILES}-image limit.`;
+  }
+
+  return "";
+}
+
+function formatSizeMb(bytes: number) {
+  return (bytes / 1024 / 1024).toFixed(1);
 }
 
 function planName(plan: string) {

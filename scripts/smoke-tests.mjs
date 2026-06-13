@@ -126,8 +126,9 @@ test("upload cleaner covers selection, guest limits, cleaning, downloads, zip, a
   has(upload, '"image/jpeg"');
   has(upload, '"image/png"');
   has(upload, '"image/webp"');
-  has(upload, "maxFileMb");
-  has(upload, "maxBatchSize = 20");
+  has(upload, "MAX_FILE_SIZE_BYTES");
+  has(upload, "MAX_BATCH_FILES");
+  has(upload, "BatchIndicator");
   has(upload, "FileGhost_guest_used");
   has(upload, "GUEST_FREE_IMAGE_LIMIT");
   has(upload, "Create Free Account — Get 5 More");
@@ -147,8 +148,9 @@ test("image cleaning API validates files and returns downloadable results", () =
   has(cleanRoute, "request.formData()");
   has(cleanRoute, "z.instanceof(File)");
   has(cleanRoute, "isAllowedImageType");
-  has(cleanRoute, "maxUploadMb");
-  has(cleanRoute, "maxBatchSize");
+  has(cleanRoute, "MAX_FILE_SIZE_BYTES");
+  has(cleanRoute, "MAX_BATCH_FILES");
+  has(cleanRoute, "MAX_BATCH_SIZE_BYTES");
   has(cleanRoute, "canProcessImages");
   has(cleanRoute, "cleanImageBuffer");
   has(cleanRoute, '.from("cleaned-images")');

@@ -11,13 +11,10 @@ import {
 } from "@/lib/metadata";
 import { canProcessImages, GUEST_FREE_IMAGE_LIMIT, getPlanAccess } from "@/lib/plans";
 import { sanitizeFilename } from "@/lib/files";
+import { MAX_BATCH_FILES, MAX_BATCH_SIZE_BYTES, MAX_BATCH_SIZE_MB, MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB } from "@/lib/constants";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
-const maxUploadMb = Number(process.env.MAX_UPLOAD_MB || 15);
-const maxBatchUploadMb = Number(process.env.MAX_BATCH_UPLOAD_MB || 60);
-const maxBatchSize = 20;
 
 export async function POST(request: Request) {
   try {
@@ -34,15 +31,47 @@ export async function POST(request: Request) {
 }
 
 async function handleCleanRequest(request: Request) {
-  const form = await request.formData();
+  const requestBytes = contentLengthBytes(request);
+  if (requestBytes && requestBytes > MAX_BATCH_SIZE_BYTES) {
+    return NextResponse.json(
+      {
+        error: "BATCH_SIZE_EXCEEDED",
+        message: `Total upload size (${formatSizeMb(requestBytes)}MB) exceeds the ${MAX_BATCH_SIZE_MB}MB limit.`
+      },
+      { status: 413 }
+    );
+  }
+
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch (error) {
+    console.error("Upload form parsing failed", {
+      contentLength: requestBytes,
+      error
+    });
+    return NextResponse.json(
+      {
+        error: "UPLOAD_PARSE_FAILED",
+        message: "This upload was too large or could not be read. Try fewer images at once."
+      },
+      { status: 413 }
+    );
+  }
   const files = form.getAll("files");
 
   if (!files.length) {
     return NextResponse.json({ error: "Upload at least one image." }, { status: 400 });
   }
 
-  if (files.length > maxBatchSize) {
-    return NextResponse.json({ error: `Upload ${maxBatchSize} images or fewer at a time.` }, { status: 400 });
+  if (files.length > MAX_BATCH_FILES) {
+    return NextResponse.json(
+      {
+        error: "TOO_MANY_FILES",
+        message: `${files.length} images selected, maximum is ${MAX_BATCH_FILES}.`
+      },
+      { status: 413 }
+    );
   }
 
   const parsedFiles: File[] = [];
@@ -55,10 +84,6 @@ async function handleCleanRequest(request: Request) {
       return NextResponse.json({ error: "Only JPG, PNG, and WEBP images are supported." }, { status: 400 });
     }
 
-    if (file.size > maxUploadMb * 1024 * 1024) {
-      return NextResponse.json({ error: `Each image must be ${maxUploadMb}MB or smaller.` }, { status: 400 });
-    }
-
     parsedFiles.push(file);
   }
 
@@ -66,16 +91,41 @@ async function handleCleanRequest(request: Request) {
     return NextResponse.json({ error: "No valid images were found." }, { status: 400 });
   }
 
-  const totalUploadBytes = parsedFiles.reduce((total, file) => total + file.size, 0);
-  if (totalUploadBytes > maxBatchUploadMb * 1024 * 1024) {
+  const oversizedFiles = parsedFiles.filter((file) => file.size > MAX_FILE_SIZE_BYTES);
+  if (oversizedFiles.length > 0) {
     return NextResponse.json(
-      { error: `Upload ${maxBatchUploadMb}MB or less at a time. Try fewer images in this batch.` },
+      {
+        error: "FILE_TOO_LARGE",
+        message: `${oversizedFiles.length} file(s) exceed the ${MAX_FILE_SIZE_MB}MB per-image limit.`,
+        files: oversizedFiles.map((file) => file.name)
+      },
       { status: 413 }
     );
   }
 
-  const user = await getCurrentUser();
-  const profile = user ? await getProfile(user.id) : null;
+  const totalUploadBytes = parsedFiles.reduce((total, file) => total + file.size, 0);
+  if (totalUploadBytes > MAX_BATCH_SIZE_BYTES) {
+    return NextResponse.json(
+      {
+        error: "BATCH_SIZE_EXCEEDED",
+        message: `Total upload size (${formatSizeMb(totalUploadBytes)}MB) exceeds the ${MAX_BATCH_SIZE_MB}MB limit.`
+      },
+      { status: 413 }
+    );
+  }
+
+  let user: Awaited<ReturnType<typeof getCurrentUser>>;
+  let profile: Awaited<ReturnType<typeof getProfile>> | null = null;
+  try {
+    user = await getCurrentUser();
+    profile = user ? await getProfile(user.id) : null;
+  } catch (error) {
+    console.error("Auth/profile lookup failed during image cleaning", { error });
+    return NextResponse.json(
+      { error: "We couldn't verify your account for this upload. Refresh and try again." },
+      { status: 401 }
+    );
+  }
 
   if (user && !canProcessImages(profile, parsedFiles.length)) {
     return NextResponse.json(
@@ -87,7 +137,16 @@ async function handleCleanRequest(request: Request) {
     );
   }
 
-  const supabase = createAdminClient();
+  let supabase: ReturnType<typeof createAdminClient>;
+  try {
+    supabase = createAdminClient();
+  } catch (error) {
+    console.error("Supabase admin client unavailable during image cleaning", { error });
+    return NextResponse.json(
+      { error: "Image storage is not configured yet. Check the production secrets and try again." },
+      { status: 500 }
+    );
+  }
   const expiresAt = new Date(Date.now() + Number(process.env.DELETE_AFTER_HOURS || 24) * 60 * 60 * 1000);
 
   const settled = await settleWithConcurrency(parsedFiles, 2, async (file) => {
@@ -248,4 +307,16 @@ async function settleWithConcurrency<T, R>(
 function readableError(error: unknown) {
   if (error instanceof Error && error.message) return error.message;
   return "Could not process this image.";
+}
+
+function contentLengthBytes(request: Request) {
+  const value = request.headers.get("content-length");
+  if (!value) return null;
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatSizeMb(bytes: number) {
+  return (bytes / 1024 / 1024).toFixed(1);
 }
