@@ -13,6 +13,7 @@ import { canProcessImages, GUEST_FREE_IMAGE_LIMIT, getPlanAccess } from "@/lib/p
 import { sanitizeFilename } from "@/lib/files";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const maxUploadMb = Number(process.env.MAX_UPLOAD_MB || 15);
 const maxBatchSize = 20;
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Upload ${maxBatchSize} images or fewer at a time.` }, { status: 400 });
   }
 
-  const parsedFiles = [];
+  const parsedFiles: File[] = [];
   for (const item of files) {
     const parsed = z.instanceof(File).safeParse(item);
     if (!parsed.success) continue;
@@ -64,61 +65,46 @@ export async function POST(request: Request) {
   }
 
   const supabase = createAdminClient();
-  const results = [];
   const expiresAt = new Date(Date.now() + Number(process.env.DELETE_AFTER_HOURS || 24) * 60 * 60 * 1000);
 
-  for (const file of parsedFiles) {
-    const originalBuffer = Buffer.from(await file.arrayBuffer());
-    const metadataBeforeRaw = await readSharpMetadata(originalBuffer);
-    const metadataBefore = extractSimpleMetadata(metadataBeforeRaw, originalBuffer);
-    const cleanedBuffer = await cleanImageBuffer(originalBuffer, file.type);
-    const metadataAfterRaw = await readSharpMetadata(cleanedBuffer);
-    const metadataAfter = extractSimpleMetadata(metadataAfterRaw, cleanedBuffer);
-    const extension = extensionForType(file.type);
-    const cleanedName = `${sanitizeFilename(file.name)}-cleaned.${extension}`;
-    const id = crypto.randomUUID();
-    const storagePath = `${user?.id || "guest"}/${id}.${extension}`;
+  const settled = await Promise.allSettled(
+    parsedFiles.map(async (file) => {
+      try {
+        return await processImage(file, user?.id || null, expiresAt);
+      } catch (error) {
+        console.error("Image cleaning failed", {
+          filename: file.name,
+          size: file.size,
+          type: file.type,
+          error
+        });
+        throw error;
+      }
+    })
+  );
 
-    const upload = await supabase.storage
-      .from("cleaned-images")
-      .upload(storagePath, cleanedBuffer, {
-        contentType: file.type,
-        upsert: false
-      });
+  const results = settled
+    .filter((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof processImage>>> => result.status === "fulfilled")
+    .map((result) => result.value);
 
-    if (upload.error) {
-      return NextResponse.json({ error: upload.error.message }, { status: 500 });
-    }
+  const failed = settled.flatMap((result, index) => {
+    if (result.status === "fulfilled") return [];
+    return [
+      {
+        filename: parsedFiles[index].name,
+        error: readableError(result.reason)
+      }
+    ];
+  });
 
-    const { error: insertError } = await supabase.from("processed_images").insert({
-      id,
-      user_id: user?.id || null,
-      original_filename: file.name,
-      cleaned_filename: cleanedName,
-      storage_path: storagePath,
-      mime_type: file.type,
-      metadata_before: metadataBefore,
-      metadata_after: metadataAfter,
-      file_size_before: file.size,
-      file_size_after: cleanedBuffer.length,
-      expires_at: expiresAt.toISOString()
-    });
-
-    if (insertError) {
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
-    }
-
-    results.push({
-      id,
-      originalName: file.name,
-      cleanedName,
-      mimeType: file.type,
-      sizeBefore: file.size,
-      sizeAfter: cleanedBuffer.length,
-      metadataBefore,
-      metadataAfter,
-      downloadUrl: `/api/images/download/${id}`
-    });
+  if (!results.length) {
+    return NextResponse.json(
+      {
+        error: "We couldn't process these images. This is usually temporary - try again or upload fewer images at once.",
+        failed
+      },
+      { status: 422 }
+    );
   }
 
   if (user && !getPlanAccess(profile).paid) {
@@ -136,5 +122,69 @@ export async function POST(request: Request) {
         paid: false
       };
 
-  return NextResponse.json({ results, usage });
+  return NextResponse.json({
+    results,
+    failed,
+    partial: failed.length > 0,
+    usage
+  });
+
+  async function processImage(file: File, userId: string | null, expiresAtValue: Date) {
+    const originalBuffer = Buffer.from(await file.arrayBuffer());
+    const metadataBeforeRaw = await readSharpMetadata(originalBuffer);
+    const metadataBefore = extractSimpleMetadata(metadataBeforeRaw, originalBuffer);
+    const cleanedBuffer = await cleanImageBuffer(originalBuffer, file.type);
+    const metadataAfterRaw = await readSharpMetadata(cleanedBuffer);
+    const metadataAfter = extractSimpleMetadata(metadataAfterRaw, cleanedBuffer);
+    const extension = extensionForType(file.type);
+    const cleanedName = `${sanitizeFilename(file.name)}-cleaned.${extension}`;
+    const id = crypto.randomUUID();
+    const storagePath = `${userId || "guest"}/${id}.${extension}`;
+
+    const upload = await supabase.storage
+      .from("cleaned-images")
+      .upload(storagePath, cleanedBuffer, {
+        contentType: file.type,
+        upsert: false
+      });
+
+    if (upload.error) {
+      throw new Error(upload.error.message);
+    }
+
+    const { error: insertError } = await supabase.from("processed_images").insert({
+      id,
+      user_id: userId,
+      original_filename: file.name,
+      cleaned_filename: cleanedName,
+      storage_path: storagePath,
+      mime_type: file.type,
+      metadata_before: metadataBefore,
+      metadata_after: metadataAfter,
+      file_size_before: file.size,
+      file_size_after: cleanedBuffer.length,
+      expires_at: expiresAtValue.toISOString()
+    });
+
+    if (insertError) {
+      throw new Error(insertError.message);
+    }
+
+    return {
+      id,
+      originalName: file.name,
+      cleanedName,
+      mimeType: file.type,
+      sizeBefore: file.size,
+      sizeAfter: cleanedBuffer.length,
+      metadataBefore,
+      metadataAfter,
+      downloadUrl: `/api/images/download/${id}`
+    };
+  }
+}
+
+function readableError(error: unknown) {
+  if (error instanceof Error && error.message) return error.message;
+  return "Could not process this image.";
 }

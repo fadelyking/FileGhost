@@ -29,6 +29,11 @@ type UsageState = {
   paid: boolean;
 };
 
+type FailedImage = {
+  filename: string;
+  error: string;
+};
+
 type Props = {
   initialUsage: UsageState;
   isLoggedIn: boolean;
@@ -61,6 +66,7 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
   const [checkoutPlan, setCheckoutPlan] = useState<CheckoutPlan | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [results, setResults] = useState<CleanedImage[]>([]);
+  const [failedFiles, setFailedFiles] = useState<FailedImage[]>([]);
   const [usage, setUsage] = useState(initialUsage);
 
   useEffect(() => {
@@ -95,7 +101,6 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
   const remaining = usage.remaining ?? activeFreeLimit;
   const isFreePlan = !usage.paid;
   const hasNoFreeCredits = isFreePlan && remaining === 0;
-  const canUse = usage.paid || selectedCount <= remaining;
   const buttonLabel = useMemo(() => {
     if (isProcessing) {
       if (selectedCount > 1) return `Processing ${selectedCount} images... ${progress || processingMessages[0]}`;
@@ -109,6 +114,7 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
     if (!fileList) return;
     setError("");
     setResults([]);
+    setFailedFiles([]);
 
     const incoming = Array.from(fileList);
     const valid = incoming.filter((file) => allowedTypes.includes(file.type) && file.size <= maxFileMb * 1024 * 1024);
@@ -123,12 +129,16 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
   }
 
   async function processFiles() {
-    if (!files.length) {
+    await processSelectedFiles(files);
+  }
+
+  async function processSelectedFiles(filesToProcess: File[], appendResults = false) {
+    if (!filesToProcess.length) {
       inputRef.current?.click();
       return;
     }
 
-    if (!canUse) {
+    if (!usage.paid && filesToProcess.length > remaining) {
       setError(isLoggedIn ? "You have used your 10 free cleans. Upgrade to keep cleaning." : "You have used your 5 free guest cleans. Create a free account to unlock 5 more.");
       return;
     }
@@ -136,8 +146,9 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
     setIsProcessing(true);
     setProgress(processingMessages[0]);
     setError("");
+    setFailedFiles([]);
     const form = new FormData();
-    files.forEach((file) => form.append("files", file));
+    filesToProcess.forEach((file) => form.append("files", file));
 
     try {
       const response = await fetch("/api/images/clean", {
@@ -147,11 +158,13 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
       const payload = await response.json();
 
       if (!response.ok) {
-        setError(payload.error || "Could not clean images. Try smaller files or different images.");
+        setFailedFiles(payload.failed || []);
+        setError(payload.error || "We couldn't process these images. Try again or upload fewer images at once.");
         return;
       }
 
-      setResults(payload.results);
+      setResults((current) => (appendResults ? [...current, ...payload.results] : payload.results));
+      setFailedFiles(payload.failed || []);
       setProgress("");
 
       if (isLoggedIn) {
@@ -168,10 +181,20 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
         });
       }
     } catch {
-      setError("Something went wrong while cleaning your images.");
+      setError("We couldn't process these images. This is usually temporary - try again or upload fewer images at once.");
     } finally {
       setIsProcessing(false);
     }
+  }
+
+  async function retryFailedFile(filename: string) {
+    const file = files.find((item) => item.name === filename);
+    if (!file) {
+      setError("Choose the file again to retry it.");
+      return;
+    }
+
+    await processSelectedFiles([file], true);
   }
 
   async function downloadZip() {
@@ -339,6 +362,15 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
           </div>
         ) : null}
         {error ? <p className="mt-4 text-sm text-coral">{error}</p> : null}
+        {error && files.length > 1 ? (
+          <button
+            type="button"
+            onClick={() => void processSelectedFiles(files)}
+            className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg border border-line px-4 text-sm font-semibold text-white/78 hover:border-mint hover:text-white"
+          >
+            Try again
+          </button>
+        ) : null}
       </section>
       )}
 
@@ -383,6 +415,34 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
               </div>
             </article>
           ))}
+        </section>
+      ) : null}
+
+      {failedFiles.length ? (
+        <section className="rounded-lg border border-coral/30 bg-coral/10 p-4">
+          <h2 className="text-lg font-bold tracking-tight text-white">
+            {failedFiles.length} of {results.length + failedFiles.length} images could not be processed
+          </h2>
+          <p className="mt-1 text-sm text-white/62">
+            Try again, or upload fewer images at once if the batch keeps failing.
+          </p>
+          <div className="mt-3 space-y-2">
+            {failedFiles.map((failure) => (
+              <div key={failure.filename} className="flex flex-col gap-2 rounded-md border border-white/10 bg-ink/40 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-white">{failure.filename}</p>
+                  <p className="text-xs text-white/55">{failure.error}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void retryFailedFile(failure.filename)}
+                  className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-md border border-line px-4 text-sm font-semibold text-white/78 hover:border-mint hover:text-white"
+                >
+                  Retry
+                </button>
+              </div>
+            ))}
+          </div>
         </section>
       ) : null}
 

@@ -15,8 +15,7 @@ type NavItem = {
   label: string;
 };
 
-export function AuthNavLink() {
-  const menuRef = useRef<HTMLDetailsElement>(null);
+function useAuthState() {
   const [auth, setAuth] = useState<AuthState>({ loaded: false, email: null });
 
   useEffect(() => {
@@ -43,24 +42,33 @@ export function AuthNavLink() {
     return () => subscription.unsubscribe();
   }, []);
 
-  async function signOut() {
-    await fetch("/api/auth/signout", { method: "POST" });
-    window.location.href = "/";
-  }
+  return auth;
+}
+
+async function signOut() {
+  await fetch("/api/auth/signout", { method: "POST" });
+  window.location.href = "/";
+}
+
+export function AuthNavLink() {
+  const menuRef = useRef<HTMLDetailsElement>(null);
+  const auth = useAuthState();
 
   if (!auth.loaded) {
     return <span className="h-10 w-24 rounded-lg bg-white/[0.06]" aria-hidden="true" />;
   }
 
   if (!auth.email) {
-    return <div className="hidden items-center gap-2 sm:flex">
-      <Link href="/login" className="px-2 text-sm font-semibold text-white/75 hover:text-white">
-        Log in
-      </Link>
-      <Link href="/app" className="rounded-lg border border-mint bg-transparent px-4 py-2 text-sm font-semibold text-mint focus-ring hover:bg-mint hover:text-ink">
-        Clean Photos →
-      </Link>
-    </div>;
+    return (
+      <div className="hidden items-center gap-2 sm:flex">
+        <Link href="/login" className="px-2 text-sm font-semibold text-white/75 hover:text-white">
+          Log in
+        </Link>
+        <Link href="/app" className="rounded-lg border border-mint bg-transparent px-4 py-2 text-sm font-semibold text-mint focus-ring hover:bg-mint hover:text-ink">
+          Clean Photos
+        </Link>
+      </div>
+    );
   }
 
   return (
@@ -102,34 +110,50 @@ export function AuthNavLink() {
   );
 }
 
-export function MarketingNavLinks({ items, variant }: { items: NavItem[]; variant: "desktop" | "mobile" }) {
-  const [auth, setAuth] = useState<AuthState>({ loaded: false, email: null });
+export function MobileAuthMenu() {
+  const auth = useAuthState();
 
-  useEffect(() => {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      setAuth({ loaded: true, email: null });
-      return;
-    }
+  if (!auth.loaded) {
+    return <div className="my-2 h-px bg-line" aria-hidden="true" />;
+  }
 
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!auth.email) {
+    return (
+      <>
+        <div className="my-2 h-px bg-line" aria-hidden="true" />
+        <Link href="/login" className="block min-h-11 rounded-md px-5 py-3.5 text-base text-[color:var(--color-text-muted)] hover:bg-[color:var(--color-surface-alt)]">
+          Log in
+        </Link>
+        <Link href="/login" className="block min-h-11 rounded-md px-5 py-3.5 text-base font-semibold text-mint hover:bg-[color:var(--color-surface-alt)]">
+          Sign up free
+        </Link>
+      </>
     );
+  }
 
-    supabase.auth.getUser().then(({ data }) => {
-      setAuth({ loaded: true, email: data.user?.email || null });
-    });
+  return (
+    <>
+      <div className="my-2 h-px bg-line" aria-hidden="true" />
+      <p className="truncate px-5 py-2 text-[13px] text-[color:var(--color-text-muted)]">{auth.email}</p>
+      <Link href="/account" className="block min-h-11 rounded-md px-5 py-3.5 text-base text-white/80 hover:bg-[color:var(--color-surface-alt)] hover:text-white">
+        Account & Billing
+      </Link>
+      <button
+        type="button"
+        onClick={() => void signOut()}
+        className="block min-h-11 w-full rounded-md px-5 py-3.5 text-left text-base text-[color:var(--color-text-muted)] hover:bg-[color:var(--color-surface-alt)] hover:text-white"
+      >
+        Sign out
+      </button>
+    </>
+  );
+}
 
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setAuth({ loaded: true, email: session?.user.email || null });
-    });
+export function MarketingNavLinks({ items, variant }: { items: NavItem[]; variant: "desktop" | "mobile" }) {
+  const auth = useAuthState();
 
-    return () => subscription.unsubscribe();
-  }, []);
-
-  if (!auth.loaded || auth.email) return null;
+  if (!auth.loaded) return null;
+  if (variant === "desktop" && auth.email) return null;
 
   if (variant === "desktop") {
     return (
@@ -146,7 +170,7 @@ export function MarketingNavLinks({ items, variant }: { items: NavItem[]; varian
   return (
     <>
       {items.map((item) => (
-        <Link key={item.href} href={item.href} className="block rounded-md px-3 py-2 text-sm text-white/75 hover:bg-white/10">
+        <Link key={item.href} href={item.href} className="block min-h-11 rounded-md px-5 py-3.5 text-base text-white/75 hover:bg-[color:var(--color-surface-alt)]">
           {item.label}
         </Link>
       ))}

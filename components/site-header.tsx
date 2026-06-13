@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Menu, ShieldCheck } from "lucide-react";
-import { AuthNavLink, MarketingNavLinks } from "@/components/auth-nav-link";
+import { AuthNavLink, MarketingNavLinks, MobileAuthMenu } from "@/components/auth-nav-link";
 
 const nav = [
   { href: "/#how-it-works", label: "How it works" },
@@ -25,11 +25,12 @@ export function SiteHeader() {
             <summary className="grid h-10 w-10 cursor-pointer list-none place-items-center rounded-lg border border-line bg-panel text-white">
               <Menu size={18} />
             </summary>
-            <div className="absolute right-0 mt-2 w-48 rounded-lg border border-line bg-panel p-2 shadow-glow">
+            <div className="absolute right-0 mt-2 w-64 rounded-lg border border-line bg-panel p-2 shadow-glow">
               <MarketingNavLinks items={nav} variant="mobile" />
-              <Link href="/app" className="block rounded-md px-3 py-2 text-sm font-semibold text-mint hover:bg-white/10">
-                Clean Photos
+              <Link href="/app" className="block min-h-11 rounded-md px-5 py-3.5 text-base font-semibold text-mint hover:bg-[color:var(--color-surface-alt)]">
+                Open App
               </Link>
+              <MobileAuthMenu />
             </div>
           </details>
         </div>
