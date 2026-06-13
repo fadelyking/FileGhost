@@ -100,6 +100,9 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
   const [failedFiles, setFailedFiles] = useState<FailedImage[]>([]);
   const [rejections, setRejections] = useState<RejectionMessage[]>([]);
   const [renameFiles, setRenameFiles] = useState(false);
+  const [canSaveAllToGallery, setCanSaveAllToGallery] = useState(false);
+  const [saveAllFlowOpen, setSaveAllFlowOpen] = useState(false);
+  const [saveAllComplete, setSaveAllComplete] = useState(false);
   const [usage, setUsage] = useState(initialUsage);
 
   useEffect(() => {
@@ -127,6 +130,27 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
 
     return () => window.clearInterval(interval);
   }, [isProcessing]);
+
+  useEffect(() => {
+    if (results.length < 2) {
+      setCanSaveAllToGallery(false);
+      setSaveAllFlowOpen(false);
+      return;
+    }
+
+    setCanSaveAllToGallery(
+      results.every((image) => {
+        const testFile = new File([new Blob([""])], image.cleanedName, { type: image.mimeType });
+        return canShareFiles(testFile);
+      })
+    );
+  }, [results]);
+
+  useEffect(() => {
+    if (!saveAllComplete) return;
+    const timeout = window.setTimeout(() => setSaveAllComplete(false), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [saveAllComplete]);
 
   const selectedCount = files.length;
   const isGuest = !isLoggedIn;
@@ -510,13 +534,24 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
               <h2 className="text-2xl font-bold tracking-tight">Cleaned images</h2>
               <p className="text-sm text-white/56">Download files individually or all at once.</p>
             </div>
-            <button
-              type="button"
-              onClick={downloadZip}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-white/12 bg-white/5 px-4 font-semibold text-white focus-ring hover:bg-white/10"
-            >
-              <FileArchive size={18} /> Download ZIP
-            </button>
+            <div className="flex flex-wrap gap-2.5">
+              <button
+                type="button"
+                onClick={downloadZip}
+                className="inline-flex min-h-11 min-w-36 items-center justify-center gap-2 rounded-lg border border-white/12 bg-white/5 px-4 font-semibold text-white focus-ring hover:bg-white/10"
+              >
+                <FileArchive size={18} /> Download ZIP
+              </button>
+              {canSaveAllToGallery ? (
+                <button
+                  type="button"
+                  onClick={() => setSaveAllFlowOpen(true)}
+                  className="inline-flex min-h-11 min-w-44 items-center justify-center gap-2 rounded-lg border border-mint bg-transparent px-4 font-semibold text-mint focus-ring hover:bg-mint hover:text-ink"
+                >
+                  <Share size={18} /> Save all to Gallery
+                </button>
+              ) : null}
+            </div>
           </div>
 
           {results.map((image) => (
@@ -587,6 +622,24 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
           >
             {buttonLabel}
           </button>
+        </div>
+      ) : null}
+
+      {saveAllFlowOpen ? (
+        <SaveAllFlow
+          images={results}
+          onClose={() => setSaveAllFlowOpen(false)}
+          onComplete={() => {
+            setSaveAllFlowOpen(false);
+            setSaveAllComplete(true);
+          }}
+          onError={setError}
+        />
+      ) : null}
+
+      {saveAllComplete ? (
+        <div className="fixed inset-x-4 bottom-5 z-[1001] mx-auto max-w-sm rounded-lg border border-mint bg-[color:var(--color-surface)] px-5 py-3 text-center text-sm font-semibold text-[color:var(--color-text)] shadow-glow">
+          Done! Saved images to your Photos library.
         </div>
       ) : null}
 
@@ -672,6 +725,165 @@ function CleanedImageDownloadButton({ image, onError }: { image: CleanedImage; o
       {useShareApi ? <Share size={18} /> : <Download size={18} />}
       {isSaving ? "Preparing..." : useShareApi ? "Save" : "Download"}
     </button>
+  );
+}
+
+type SaveAllItem = {
+  blob: Blob;
+  filename: string;
+  mimeType: string;
+  previewUrl: string;
+};
+
+function SaveAllFlow({
+  images,
+  onClose,
+  onComplete,
+  onError
+}: {
+  images: CleanedImage[];
+  onClose: () => void;
+  onComplete: () => void;
+  onError: (message: string) => void;
+}) {
+  const [items, setItems] = useState<SaveAllItem[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [savedCount, setSavedCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const previewUrls: string[] = [];
+
+    async function loadFiles() {
+      try {
+        const loaded = await Promise.all(
+          images.map(async (image) => {
+            const response = await fetch(image.downloadUrl);
+            if (!response.ok) throw new Error("Could not prepare image.");
+            const blob = await response.blob();
+            const previewUrl = URL.createObjectURL(blob);
+            previewUrls.push(previewUrl);
+            return {
+              blob,
+              filename: image.cleanedName,
+              mimeType: blob.type || image.mimeType,
+              previewUrl
+            };
+          })
+        );
+
+        if (!cancelled) {
+          setItems(loaded);
+          setIsLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          onError("Could not prepare images for saving.");
+          onClose();
+        }
+      }
+    }
+
+    void loadFiles();
+
+    return () => {
+      cancelled = true;
+      previewUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [images, onClose, onError]);
+
+  const currentItem = items[currentIndex];
+  const totalImages = images.length;
+
+  function advanceToNext() {
+    setSavedCount((count) => count + 1);
+
+    if (currentIndex < totalImages - 1) {
+      setCurrentIndex((index) => index + 1);
+      return;
+    }
+
+    onComplete();
+  }
+
+  async function handleSaveCurrentImage() {
+    if (!currentItem) return;
+    setIsSaving(true);
+
+    const file = new File([currentItem.blob], currentItem.filename, {
+      type: currentItem.mimeType
+    });
+
+    try {
+      await navigator.share({
+        files: [file],
+        title: currentItem.filename
+      });
+      advanceToNext();
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        setIsSaving(false);
+        return;
+      }
+      advanceToNext();
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-ink/85 p-5 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="save-all-title">
+      <div className="relative w-full max-w-[360px] rounded-2xl border border-line bg-[color:var(--color-surface)] p-6 text-center shadow-glow">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-md text-[color:var(--color-text-muted)] hover:bg-white/10 hover:text-white"
+          aria-label="Close save flow"
+        >
+          <X size={18} />
+        </button>
+
+        <p id="save-all-title" className="mb-4 text-[13px] font-semibold text-[color:var(--color-text-muted)]">
+          Image {Math.min(currentIndex + 1, totalImages)} of {totalImages}
+        </p>
+
+        {isLoading || !currentItem ? (
+          <div className="grid min-h-[240px] place-items-center rounded-lg bg-[color:var(--color-surface-alt)] text-sm text-[color:var(--color-text-muted)]">
+            Preparing images...
+          </div>
+        ) : (
+          <>
+            <img
+              src={currentItem.previewUrl}
+              className="mb-3 max-h-60 w-full rounded-lg bg-[color:var(--color-surface-alt)] object-contain"
+              alt={currentItem.filename}
+            />
+            <p className="mb-5 break-all text-[13px] text-[color:var(--color-text-muted)]">
+              {currentItem.filename}
+            </p>
+            <button
+              type="button"
+              disabled={isSaving}
+              onClick={() => void handleSaveCurrentImage()}
+              className="mb-2 min-h-12 w-full rounded-lg bg-mint px-5 py-3.5 text-base font-bold text-ink hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {isSaving ? "Opening..." : "Save to Photos"}
+            </button>
+            <button
+              type="button"
+              onClick={advanceToNext}
+              className="min-h-11 w-full rounded-lg bg-transparent px-5 py-2.5 text-sm font-semibold text-[color:var(--color-text-muted)] hover:bg-white/10 hover:text-white"
+            >
+              Skip
+            </button>
+          </>
+        )}
+
+        <span className="sr-only">{savedCount} images saved or skipped</span>
+      </div>
+    </div>
   );
 }
 

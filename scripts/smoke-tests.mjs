@@ -134,6 +134,9 @@ test("upload cleaner covers selection, guest limits, cleaning, downloads, zip, a
   has(upload, "CleanedImageDownloadButton");
   has(upload, "canShareFiles");
   has(upload, "Save");
+  has(upload, "Save all to Gallery");
+  has(upload, "SaveAllFlow");
+  has(upload, "Save to Photos");
   has(upload, "FileGhost_guest_used");
   has(upload, "GUEST_FREE_IMAGE_LIMIT");
   has(upload, "Create Free Account — Get 5 More");
@@ -189,6 +192,32 @@ test("account actions cover billing portal and sign out", () => {
   has(actions, "/api/auth/signout");
   has(actions, "Open billing portal");
   has(actions, "Sign out");
+});
+
+test("PWA install prompt, manifest, and service worker are configured", () => {
+  const appPage = read("app/app/page.tsx");
+  const layout = read("app/layout.tsx");
+  const installBanner = read("components/install-app-banner.tsx");
+  const iosModal = read("components/ios-install-modal.tsx");
+  const serviceWorker = read("public/sw.js");
+  const manifest = JSON.parse(read("public/site.webmanifest"));
+
+  has(appPage, "InstallAppBanner");
+  has(layout, "/site.webmanifest");
+  has(layout, "apple-mobile-web-app-capable");
+  has(layout, "ServiceWorkerRegister");
+  has(installBanner, "beforeinstallprompt");
+  has(installBanner, "install-banner-dismissed");
+  has(installBanner, "14 * 24 * 60 * 60 * 1000");
+  has(installBanner, "display-mode: standalone");
+  has(iosModal, "Add FileGhost to your Home Screen");
+  has(serviceWorker, "skipWaiting");
+  has(serviceWorker, "clients.claim");
+  assert.equal(manifest.start_url, "/app");
+  assert.equal(manifest.display, "standalone");
+  assert.equal(manifest.theme_color, "#2DD4BF");
+  assert.ok(existsSync(`${root}/public/icon-192.png`), "Expected public/icon-192.png to exist");
+  assert.ok(existsSync(`${root}/public/icon-512.png`), "Expected public/icon-512.png to exist");
 });
 
 test("Stripe checkout, portal, and webhook routes contain the required payment hooks", () => {

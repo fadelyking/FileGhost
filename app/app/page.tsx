@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Footer } from "@/components/footer";
+import { InstallAppBanner } from "@/components/install-app-banner";
 import { SiteHeader } from "@/components/site-header";
 import { UploadCleaner } from "@/components/upload-cleaner";
 import { getCurrentUser, getProfile } from "@/lib/auth";
@@ -37,6 +38,7 @@ export default async function AppPage() {
         <div className="mb-6 rounded-lg border border-white/10 bg-white/[0.035] p-4 text-sm text-white/65">
           Files processed privately and deleted after cleaning. No training. No public sharing.
         </div>
+        <InstallAppBanner />
 
         <UploadCleaner initialUsage={usage} isLoggedIn={Boolean(user)} />
       </main>
