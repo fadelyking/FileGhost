@@ -19,6 +19,7 @@ type CleanedImage = {
   sizeAfter: number;
   metadataBefore: MetadataSummary;
   metadataAfter: MetadataSummary;
+  renamed?: boolean;
   downloadUrl: string;
 };
 
@@ -97,6 +98,7 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
   const [results, setResults] = useState<CleanedImage[]>([]);
   const [failedFiles, setFailedFiles] = useState<FailedImage[]>([]);
   const [rejections, setRejections] = useState<RejectionMessage[]>([]);
+  const [renameFiles, setRenameFiles] = useState(false);
   const [usage, setUsage] = useState(initialUsage);
 
   useEffect(() => {
@@ -156,6 +158,7 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
     setError("");
     setResults([]);
     setFailedFiles([]);
+    if (!files.length) setRenameFiles(false);
 
     const incoming = Array.from(fileList);
     const valid: File[] = [];
@@ -226,6 +229,8 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
       const failedImages: FailedImage[] = [];
       let latestUsage: UsageState | null = null;
       let firstError = "";
+      let batchStartIndex = 0;
+      const shouldRenameFiles = renameFiles;
 
       for (let index = 0; index < batches.length; index += 1) {
         const batch = batches[index];
@@ -233,7 +238,8 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
           setProgress(`Processing ${Math.min((index + 1) * maxRequestBatchSize, filesToProcess.length)} of ${filesToProcess.length} images...`);
         }
 
-        const { response, payload } = await submitCleanBatch(batch);
+        const { response, payload } = await submitCleanBatch(batch, shouldRenameFiles, batchStartIndex);
+        batchStartIndex += batch.length;
 
         if (!response.ok) {
           failedImages.push(...failureListForBatch(batch, payload));
@@ -456,6 +462,9 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
             ))}
           </div>
         ) : null}
+        {files.length ? (
+          <RenameOption checked={renameFiles} onChange={setRenameFiles} />
+        ) : null}
         {files.length ? <BatchIndicator status={batchStatus} /> : null}
         {files.length ? (
           <div className="mt-5 grid gap-2 sm:grid-cols-2">
@@ -466,7 +475,13 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
                   type="button"
                   className="grid h-8 w-8 shrink-0 place-items-center rounded-md hover:bg-white/10"
                   aria-label={`Remove ${file.name}`}
-                  onClick={() => setFiles((current) => current.filter((item) => item !== file))}
+                  onClick={() => {
+                    setFiles((current) => {
+                      const next = current.filter((item) => item !== file);
+                      if (!next.length) setRenameFiles(false);
+                      return next;
+                    });
+                  }}
                 >
                   <X size={16} />
                 </button>
@@ -507,7 +522,14 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
             <article key={image.id} className="rounded-lg border border-white/10 bg-white/[0.035] p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h3 className="font-semibold">{image.originalName}</h3>
+                  <h3 className="font-semibold">
+                    {image.renamed ? image.cleanedName : image.originalName}
+                    {image.renamed ? (
+                      <span className="ml-1.5 text-[11px] font-normal italic text-[color:var(--color-text-muted)]">
+                        (originally: {image.originalName})
+                      </span>
+                    ) : null}
+                  </h3>
                   <p className="text-xs text-white/48">
                     {formatSizeChange(image.sizeBefore, image.sizeAfter)}
                   </p>
@@ -573,6 +595,27 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
       ) : null}
 
       <UpgradeAuthModal open={authModalOpen} plan={checkoutPlan} onClose={() => setAuthModalOpen(false)} />
+    </div>
+  );
+}
+
+function RenameOption({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <div className="my-3 w-full max-w-xl rounded-[10px] border border-line bg-[color:var(--color-surface)] px-4 py-3 text-left">
+      <label className="flex min-h-11 cursor-pointer items-center gap-2.5">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(event) => onChange(event.target.checked)}
+          className="h-[18px] w-[18px] shrink-0 cursor-pointer accent-mint"
+        />
+        <span className="text-sm font-semibold text-[color:var(--color-text)]">
+          Rename files on download
+        </span>
+      </label>
+      <p className="mt-1.5 ml-7 text-xs leading-5 text-[color:var(--color-text-muted)] max-[360px]:ml-0">
+        Replaces filenames like "ChatGPT Image Jun 12, 2026..." with generic names like "cleaned_image_1.png".
+      </p>
     </div>
   );
 }
@@ -842,9 +885,13 @@ async function readJsonResponse(response: Response) {
   }
 }
 
-async function submitCleanBatch(files: File[]) {
+async function submitCleanBatch(files: File[], renameFiles: boolean, renameStartIndex: number) {
   const form = new FormData();
   files.forEach((file) => form.append("files", file));
+  if (renameFiles) {
+    form.append("renameFiles", "true");
+    form.append("renameStartIndex", String(renameStartIndex));
+  }
 
   const response = await fetch("/api/images/clean", {
     method: "POST",

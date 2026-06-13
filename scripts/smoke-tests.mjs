@@ -129,6 +129,8 @@ test("upload cleaner covers selection, guest limits, cleaning, downloads, zip, a
   has(upload, "MAX_FILE_SIZE_BYTES");
   has(upload, "MAX_BATCH_FILES");
   has(upload, "BatchIndicator");
+  has(upload, "Rename files on download");
+  has(upload, "renameStartIndex");
   has(upload, "FileGhost_guest_used");
   has(upload, "GUEST_FREE_IMAGE_LIMIT");
   has(upload, "Create Free Account — Get 5 More");
@@ -153,6 +155,8 @@ test("image cleaning API validates files and returns downloadable results", () =
   has(cleanRoute, "MAX_BATCH_SIZE_BYTES");
   has(cleanRoute, "INSUFFICIENT_CREDITS");
   has(cleanRoute, "cleansRemaining");
+  has(cleanRoute, "cleaned_image_");
+  has(cleanRoute, "renameStartIndex");
   has(cleanRoute, "cleanImageBuffer");
   has(cleanRoute, '.from("cleaned-images")');
   has(cleanRoute, "downloadUrl");

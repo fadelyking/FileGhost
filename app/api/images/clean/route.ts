@@ -59,6 +59,8 @@ async function handleCleanRequest(request: Request) {
     );
   }
   const files = form.getAll("files");
+  const renameFiles = form.get("renameFiles") === "true";
+  const renameStartIndex = parseRenameStartIndex(form.get("renameStartIndex"));
 
   if (!files.length) {
     return NextResponse.json({ error: "Upload at least one image." }, { status: 400 });
@@ -163,9 +165,9 @@ async function handleCleanRequest(request: Request) {
   }
   const expiresAt = new Date(Date.now() + Number(process.env.DELETE_AFTER_HOURS || 24) * 60 * 60 * 1000);
 
-  const settled = await settleWithConcurrency(parsedFiles, 2, async (file) => {
+  const settled = await settleWithConcurrency(parsedFiles, 2, async (file, index) => {
       try {
-        return await processImage(file, user?.id || null, expiresAt);
+        return await processImage(file, user?.id || null, expiresAt, renameFiles, renameStartIndex + index);
       } catch (error) {
         console.error("Image cleaning failed", {
           filename: file.name,
@@ -232,15 +234,17 @@ async function handleCleanRequest(request: Request) {
     usage
   });
 
-  async function processImage(file: File, userId: string | null, expiresAtValue: Date) {
+  async function processImage(file: File, userId: string | null, expiresAtValue: Date, shouldRename: boolean, renameIndex: number) {
     const originalBuffer = Buffer.from(await file.arrayBuffer());
     const metadataBeforeRaw = await readSharpMetadata(originalBuffer);
     const metadataBefore = extractSimpleMetadata(metadataBeforeRaw, originalBuffer);
     const cleanedBuffer = await cleanImageBuffer(originalBuffer, file.type);
     const metadataAfterRaw = await readSharpMetadata(cleanedBuffer);
     const metadataAfter = extractSimpleMetadata(metadataAfterRaw, cleanedBuffer);
-    const extension = extensionForType(file.type);
-    const cleanedName = `${sanitizeFilename(file.name)}-cleaned.${extension}`;
+    const extension = outputExtension(file);
+    const cleanedName = shouldRename
+      ? `cleaned_image_${renameIndex + 1}.${extension}`
+      : `${sanitizeFilename(file.name)}-cleaned.${extension}`;
     const id = crypto.randomUUID();
     const storagePath = `${userId || "guest"}/${id}.${extension}`;
 
@@ -282,6 +286,7 @@ async function handleCleanRequest(request: Request) {
       sizeAfter: cleanedBuffer.length,
       metadataBefore,
       metadataAfter,
+      renamed: shouldRename,
       downloadUrl: `/api/images/download/${id}`
     };
   }
@@ -290,7 +295,7 @@ async function handleCleanRequest(request: Request) {
 async function settleWithConcurrency<T, R>(
   items: T[],
   limit: number,
-  worker: (item: T) => Promise<R>
+  worker: (item: T, index: number) => Promise<R>
 ): Promise<PromiseSettledResult<R>[]> {
   const results: PromiseSettledResult<R>[] = new Array(items.length);
   let nextIndex = 0;
@@ -303,7 +308,7 @@ async function settleWithConcurrency<T, R>(
       try {
         results[currentIndex] = {
           status: "fulfilled",
-          value: await worker(items[currentIndex])
+          value: await worker(items[currentIndex], currentIndex)
         };
       } catch (reason) {
         results[currentIndex] = {
@@ -333,4 +338,20 @@ function contentLengthBytes(request: Request) {
 
 function formatSizeMb(bytes: number) {
   return (bytes / 1024 / 1024).toFixed(1);
+}
+
+function parseRenameStartIndex(value: FormDataEntryValue | null) {
+  const parsed = Number(value || 0);
+  if (!Number.isFinite(parsed) || parsed < 0) return 0;
+  return Math.floor(parsed);
+}
+
+function outputExtension(file: File) {
+  const match = file.name.toLowerCase().match(/\.([a-z0-9]+)$/);
+  const extension = match?.[1];
+  if (extension && ["jpg", "jpeg", "png", "webp"].includes(extension)) {
+    return extension;
+  }
+
+  return extensionForType(file.type);
 }
