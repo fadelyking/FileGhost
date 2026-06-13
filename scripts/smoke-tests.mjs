@@ -131,6 +131,9 @@ test("upload cleaner covers selection, guest limits, cleaning, downloads, zip, a
   has(upload, "BatchIndicator");
   has(upload, "Rename files on download");
   has(upload, "renameStartIndex");
+  has(upload, "CleanedImageDownloadButton");
+  has(upload, "canShareFiles");
+  has(upload, "Save");
   has(upload, "FileGhost_guest_used");
   has(upload, "GUEST_FREE_IMAGE_LIMIT");
   has(upload, "Create Free Account — Get 5 More");

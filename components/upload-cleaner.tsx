@@ -4,11 +4,12 @@ import Link from "next/link";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
-import { Download, FileArchive, Loader2, Lock, UploadCloud, X, Zap } from "lucide-react";
+import { Download, FileArchive, Loader2, Lock, Share, UploadCloud, X, Zap } from "lucide-react";
 import { MetadataPreview } from "@/components/metadata-preview";
 import { MAX_BATCH_FILES, MAX_BATCH_SIZE_BYTES, MAX_BATCH_SIZE_MB, MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB } from "@/lib/constants";
 import type { MetadataSummary } from "@/lib/metadata";
 import { FREE_IMAGE_LIMIT, GUEST_FREE_IMAGE_LIMIT } from "@/lib/plans";
+import { canShareFiles } from "@/lib/share";
 
 type CleanedImage = {
   id: string;
@@ -534,12 +535,7 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
                     {formatSizeChange(image.sizeBefore, image.sizeAfter)}
                   </p>
                 </div>
-                <a
-                  href={image.downloadUrl}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-mint px-4 font-semibold text-ink focus-ring hover:bg-white"
-                >
-                  <Download size={18} /> Download
-                </a>
+                <CleanedImageDownloadButton image={image} onError={setError} />
               </div>
               <div className="mt-4">
                 <MetadataPreview
@@ -617,6 +613,65 @@ function RenameOption({ checked, onChange }: { checked: boolean; onChange: (chec
         Replaces filenames like "ChatGPT Image Jun 12, 2026..." with generic names like "cleaned_image_1.png".
       </p>
     </div>
+  );
+}
+
+function CleanedImageDownloadButton({ image, onError }: { image: CleanedImage; onError: (message: string) => void }) {
+  const [useShareApi, setUseShareApi] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const testFile = new File([new Blob([""])], image.cleanedName, { type: image.mimeType });
+    setUseShareApi(canShareFiles(testFile));
+  }, [image.cleanedName, image.mimeType]);
+
+  async function handleDownload() {
+    setIsSaving(true);
+    onError("");
+
+    try {
+      const response = await fetch(image.downloadUrl);
+      if (!response.ok) {
+        onError("Could not download image.");
+        return;
+      }
+
+      const blob = await response.blob();
+      const filename = image.cleanedName;
+      const file = new File([blob], filename, { type: blob.type || image.mimeType });
+
+      if (canShareFiles(file)) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: filename
+          });
+          return;
+        } catch (error) {
+          if (error instanceof Error && error.name === "AbortError") return;
+        }
+      }
+
+      const url = URL.createObjectURL(blob);
+      triggerDownload(url, filename);
+      URL.revokeObjectURL(url);
+    } catch {
+      onError("Could not download image.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => void handleDownload()}
+      disabled={isSaving}
+      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-mint px-4 font-semibold text-ink focus-ring hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+    >
+      {useShareApi ? <Share size={18} /> : <Download size={18} />}
+      {isSaving ? "Preparing..." : useShareApi ? "Save" : "Download"}
+    </button>
   );
 }
 
