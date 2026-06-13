@@ -46,6 +46,8 @@ type CleanResponsePayload = {
 type RejectionMessage = {
   id: string;
   message: string;
+  action?: "upgrade";
+  tone: "error" | "accent";
 };
 
 type BatchStatus = {
@@ -56,8 +58,10 @@ type BatchStatus = {
   sizeExceeded: boolean;
   countExceeded: boolean;
   sizeIsBinding: boolean;
+  effectiveMaxFiles: number;
+  creditLimitReached: boolean;
   warningMessage: string;
-  tone: "default" | "warning" | "danger";
+  tone: "default" | "warning" | "danger" | "accent";
 };
 
 type Props = {
@@ -127,7 +131,8 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
   const remaining = usage.remaining ?? activeFreeLimit;
   const isFreePlan = !usage.paid;
   const hasNoFreeCredits = isFreePlan && remaining === 0;
-  const batchStatus = getBatchStatus(files);
+  const effectiveMaxFiles = usage.paid ? MAX_BATCH_FILES : Math.min(MAX_BATCH_FILES, remaining);
+  const batchStatus = getBatchStatus(files, effectiveMaxFiles, !usage.paid);
   const batchOverLimit = batchStatus.sizeExceeded || batchStatus.countExceeded;
   const buttonLabel = useMemo(() => {
     if (isProcessing) {
@@ -138,9 +143,9 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
     return `Clean ${selectedCount} image${selectedCount === 1 ? "" : "s"}`;
   }, [isProcessing, progress, selectedCount]);
 
-  function showRejection(message: string) {
+  function showRejection(message: string, options: { action?: "upgrade"; tone?: "error" | "accent" } = {}) {
     const id = crypto.randomUUID();
-    setRejections((current) => [...current, { id, message }]);
+    setRejections((current) => [...current, { id, message, action: options.action, tone: options.tone || "error" }]);
     window.setTimeout(() => {
       setRejections((current) => current.filter((item) => item.id !== id));
     }, 5000);
@@ -169,7 +174,23 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
       valid.push(file);
     });
 
-    const next = [...files, ...valid];
+    const availableSlots = Math.max(effectiveMaxFiles - files.length, 0);
+    const accepted = valid.slice(0, availableSlots);
+    const rejectedByCount = valid.length - accepted.length;
+
+    if (rejectedByCount > 0) {
+      const isCreditsLimited = !usage.paid && effectiveMaxFiles < MAX_BATCH_FILES;
+      if (isCreditsLimited) {
+        showRejection(
+          `You have ${remaining} free clean(s) remaining. Only the first ${remaining} image(s) were added. Upgrade for unlimited cleaning.`,
+          { action: "upgrade", tone: "accent" }
+        );
+      } else {
+        showRejection(`You can clean up to ${MAX_BATCH_FILES} images per batch. Only the first ${MAX_BATCH_FILES} image(s) were added.`);
+      }
+    }
+
+    const next = [...files, ...accepted];
     setFiles(next);
   }
 
@@ -188,7 +209,7 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
       return;
     }
 
-    const currentBatchStatus = getBatchStatus(filesToProcess);
+    const currentBatchStatus = getBatchStatus(filesToProcess, effectiveMaxFiles, !usage.paid);
     if (currentBatchStatus.sizeExceeded || currentBatchStatus.countExceeded) {
       setError(currentBatchStatus.warningMessage || "Remove some images to continue.");
       return;
@@ -417,9 +438,21 @@ export function UploadCleaner({ initialUsage, isLoggedIn }: Props) {
         {rejections.length ? (
           <div className="mt-4 w-full max-w-xl space-y-2" aria-live="polite">
             {rejections.map((rejection) => (
-              <p key={rejection.id} className="rounded-md border border-[#EF4444]/30 bg-[#EF4444]/10 px-3 py-2 text-left text-[13px] leading-5 text-[#EF4444]">
-                {rejection.message}
-              </p>
+              <div
+                key={rejection.id}
+                className={`flex flex-col gap-2 rounded-md border px-3 py-2 text-left text-[13px] leading-5 sm:flex-row sm:items-center sm:justify-between ${
+                  rejection.tone === "accent"
+                    ? "border-mint/30 bg-mint/10 text-mint"
+                    : "border-[#EF4444]/30 bg-[#EF4444]/10 text-[#EF4444]"
+                }`}
+              >
+                <p>{rejection.message}</p>
+                {rejection.action === "upgrade" ? (
+                  <Link href="/pricing" className="inline-flex min-h-8 shrink-0 items-center justify-center rounded-md border border-mint px-3 text-xs font-semibold text-mint hover:bg-mint hover:text-ink">
+                    Upgrade
+                  </Link>
+                ) : null}
+              </div>
             ))}
           </div>
         ) : null}
@@ -557,7 +590,12 @@ function BatchIndicator({ status }: { status: BatchStatus }) {
       : status.tone === "warning"
         ? "text-[#F59E0B]"
         : "text-[color:var(--color-text)]";
-  const warningClassName = status.tone === "danger" ? "text-[#EF4444] font-medium" : "text-[#F59E0B]";
+  const warningClassName =
+    status.tone === "danger"
+      ? "text-[#EF4444] font-medium"
+      : status.tone === "accent"
+        ? "text-mint"
+        : "text-[#F59E0B]";
 
   return (
     <div className="my-3 w-full max-w-xl rounded-[10px] border border-line bg-[color:var(--color-surface)] px-4 py-3 text-left">
@@ -566,7 +604,7 @@ function BatchIndicator({ status }: { status: BatchStatus }) {
           {status.totalSizeMB} MB of {MAX_BATCH_SIZE_MB} MB
         </span>
         <span className="text-[color:var(--color-text-muted)]">
-          {status.fileCount} of {MAX_BATCH_FILES} images
+          {status.fileCount} of {status.effectiveMaxFiles} images
         </span>
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-[3px] bg-[color:var(--color-surface-alt)]">
@@ -576,9 +614,16 @@ function BatchIndicator({ status }: { status: BatchStatus }) {
         />
       </div>
       {status.warningMessage ? (
-        <p className={`mt-2 text-xs leading-5 ${warningClassName}`}>
-          {status.warningMessage}
-        </p>
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className={`text-xs leading-5 ${warningClassName}`}>
+            {status.warningMessage}
+          </p>
+          {status.creditLimitReached ? (
+            <Link href="/pricing" className="inline-flex min-h-8 shrink-0 items-center justify-center rounded-md border border-mint px-3 text-xs font-semibold text-mint hover:bg-mint hover:text-ink">
+              Upgrade
+            </Link>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
@@ -827,15 +872,16 @@ function chunkFiles(files: File[], size: number) {
   return chunks;
 }
 
-function getBatchStatus(files: File[]): BatchStatus {
+function getBatchStatus(files: File[], effectiveMaxFiles: number, isCreditLimited: boolean): BatchStatus {
   const totalSizeBytes = files.reduce((total, file) => total + file.size, 0);
   const sizePercentage = Math.min((totalSizeBytes / MAX_BATCH_SIZE_BYTES) * 100, 100);
-  const countPercentage = Math.min((files.length / MAX_BATCH_FILES) * 100, 100);
+  const countPercentage = effectiveMaxFiles > 0 ? Math.min((files.length / effectiveMaxFiles) * 100, 100) : 100;
   const percentage = Math.max(sizePercentage, countPercentage);
   const sizeExceeded = totalSizeBytes > MAX_BATCH_SIZE_BYTES;
-  const countExceeded = files.length > MAX_BATCH_FILES;
+  const countExceeded = files.length > effectiveMaxFiles;
   const sizeIsBinding = sizePercentage >= countPercentage;
-  const tone = sizeExceeded || countExceeded ? "danger" : percentage >= 70 ? "warning" : "default";
+  const creditLimitReached = isCreditLimited && effectiveMaxFiles < MAX_BATCH_FILES && files.length === effectiveMaxFiles && effectiveMaxFiles > 0;
+  const tone = sizeExceeded || countExceeded ? "danger" : creditLimitReached ? "accent" : percentage >= 70 ? "warning" : "default";
 
   return {
     totalSizeBytes,
@@ -845,11 +891,15 @@ function getBatchStatus(files: File[]): BatchStatus {
     sizeExceeded,
     countExceeded,
     sizeIsBinding,
+    effectiveMaxFiles,
+    creditLimitReached,
     warningMessage: getBatchWarning({
       fileCount: files.length,
+      effectiveMaxFiles,
       percentage,
       sizeExceeded,
       countExceeded,
+      creditLimitReached,
       sizeIsBinding,
       totalSizeMB: formatSizeMb(totalSizeBytes)
     }),
@@ -859,16 +909,20 @@ function getBatchStatus(files: File[]): BatchStatus {
 
 function getBatchWarning({
   fileCount,
+  effectiveMaxFiles,
   percentage,
   sizeExceeded,
   countExceeded,
+  creditLimitReached,
   sizeIsBinding,
   totalSizeMB
 }: {
   fileCount: number;
+  effectiveMaxFiles: number;
   percentage: number;
   sizeExceeded: boolean;
   countExceeded: boolean;
+  creditLimitReached: boolean;
   sizeIsBinding: boolean;
   totalSizeMB: string;
 }) {
@@ -877,7 +931,11 @@ function getBatchWarning({
   }
 
   if (countExceeded) {
-    return `You've selected ${fileCount} images, over the ${MAX_BATCH_FILES}-image limit. Remove ${fileCount - MAX_BATCH_FILES} to continue.`;
+    return `You've selected ${fileCount} images, over the ${effectiveMaxFiles}-image limit. Remove ${fileCount - effectiveMaxFiles} to continue.`;
+  }
+
+  if (creditLimitReached) {
+    return `This uses all ${effectiveMaxFiles} of your remaining free cleans. Upgrade for unlimited cleaning.`;
   }
 
   if (percentage >= 90) {
@@ -885,7 +943,7 @@ function getBatchWarning({
   }
 
   if (percentage >= 70) {
-    return sizeIsBinding ? `Getting close to the ${MAX_BATCH_SIZE_MB}MB batch limit.` : `Getting close to the ${MAX_BATCH_FILES}-image limit.`;
+    return sizeIsBinding ? `Getting close to the ${MAX_BATCH_SIZE_MB}MB batch limit.` : `Getting close to the ${effectiveMaxFiles}-image limit.`;
   }
 
   return "";

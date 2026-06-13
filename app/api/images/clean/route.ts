@@ -9,7 +9,7 @@ import {
   isAllowedImageType,
   readSharpMetadata
 } from "@/lib/metadata";
-import { canProcessImages, GUEST_FREE_IMAGE_LIMIT, getPlanAccess } from "@/lib/plans";
+import { GUEST_FREE_IMAGE_LIMIT, getPlanAccess } from "@/lib/plans";
 import { sanitizeFilename } from "@/lib/files";
 import { MAX_BATCH_FILES, MAX_BATCH_SIZE_BYTES, MAX_BATCH_SIZE_MB, MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB } from "@/lib/constants";
 
@@ -127,13 +127,27 @@ async function handleCleanRequest(request: Request) {
     );
   }
 
-  if (user && !canProcessImages(profile, parsedFiles.length)) {
+  const access = user
+    ? getPlanAccess(profile)
+    : {
+        freeUsed: 0,
+        freeLimit: GUEST_FREE_IMAGE_LIMIT,
+        plan: "guest",
+        remaining: GUEST_FREE_IMAGE_LIMIT,
+        paid: false
+      };
+  const cleansRemaining = access.remaining ?? MAX_BATCH_FILES;
+
+  if (!access.paid && parsedFiles.length > cleansRemaining) {
     return NextResponse.json(
       {
-        error: "You have used your 10 free cleans. Choose a paid plan to keep cleaning images.",
-        usage: getPlanAccess(profile)
+        error: "INSUFFICIENT_CREDITS",
+        message: `You have ${cleansRemaining} free clean(s) remaining but selected ${parsedFiles.length} images.`,
+        cleansRemaining,
+        filesSubmitted: parsedFiles.length,
+        usage: access
       },
-      { status: 402 }
+      { status: 403 }
     );
   }
 

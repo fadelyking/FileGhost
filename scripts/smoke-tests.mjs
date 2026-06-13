@@ -151,7 +151,8 @@ test("image cleaning API validates files and returns downloadable results", () =
   has(cleanRoute, "MAX_FILE_SIZE_BYTES");
   has(cleanRoute, "MAX_BATCH_FILES");
   has(cleanRoute, "MAX_BATCH_SIZE_BYTES");
-  has(cleanRoute, "canProcessImages");
+  has(cleanRoute, "INSUFFICIENT_CREDITS");
+  has(cleanRoute, "cleansRemaining");
   has(cleanRoute, "cleanImageBuffer");
   has(cleanRoute, '.from("cleaned-images")');
   has(cleanRoute, "downloadUrl");
